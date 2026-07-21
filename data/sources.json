@@ -1,0 +1,1758 @@
+{
+  "meta": {
+    "project": "MENA / Iran conflict intel monitor",
+    "built": "2026-07-16",
+    "rebuilt": "2026-07-16",
+    "tiers": {
+      "official": "Government, military, ministry, or state news agency speaking for the named country/actor. Leads every answer.",
+      "semi_official": "State-linked / IRGC-linked / Houthi-linked outlets and channels — where claims surface first; NOT a government statement.",
+      "media": "Credible named news outlets, reached on demand via Bing News RSS. Unofficial but accountable."
+    },
+    "pillars": [
+      "tactical",
+      "maritime",
+      "strategic",
+      "cyber"
+    ],
+    "transports": {
+      "telegram": "Telegram API (Telethon) when TELEGRAM_API_ID/HASH set + logged in (tools/telegram_login.py); t.me/s/ web preview fallback. Actor primary sources + vetted journalists.",
+      "x": "X/Twitter API v2 recent-search by account. Requires X_BEARER_TOKEN; inactive until set.",
+      "bing": "Bing News RSS query — retrieves this body's statements via wire/media relay with direct article links.",
+      "rss": "Native RSS feed of the source itself.",
+      "api": "Structured JSON API."
+    },
+    "transport_policy": {
+      "decided": "2026-07-16 (user directive)",
+      "rule": "ONLY Telegram + X + Bing News RSS are intel transports. The per-outlet media RSS pile and all dead web-scrape sources were removed.",
+      "kept_by_exception": [
+        "IRNA / Press TV (official Iran) + Mehr (semi-official) native RSS — Iran's own primary voice, live-verified returning on-target intel; Bing relay of Iranian state media is slower and loses their framing.",
+        "Tzeva Adom API (Israel Home Front Command siren mirror) — the only structured source for Israeli sirens/impact/timing and for genuine all-quiet reporting; no Telegram/X/Bing source replaces it.",
+        "US State Dept travel advisories RSS — single low-noise official feed; covers embassy/consular suspensions (EXAMPLES #3)."
+      ],
+      "note": "These three exceptions are flagged for the user to cut if unwanted."
+    },
+    "rules": [
+      "Official sources from BOTH Iran and the target countries are prioritized and must always be present in output; then semi-official, then media.",
+      "LOCATION IS MANDATORY on every intel item: city, facility/base name, coordinates, or source-stated distance to a named city/airport. No internal asset codes.",
+      "Bing News queries MUST stay simple (1-3 words + country/agency name); complex boolean queries degrade to noise. Several small queries + dedupe beats one big query.",
+      "A body retrieved via `bing` is being read through MEDIA RELAY, not from the agency directly: items are marked retrieval='bing_news_relay' and must be attributed as 'official statement, via media relay'.",
+      "MEDIA tier = Bing News across credible named outlets ONLY. No anonymous OSINT/Telegram aggregators — removed 2026-07-16 as not credible.",
+      "Actor official/semi-official Telegram + X channels are PRIMARY SOURCES in their own tier, not the media tier.",
+      "Telegram/X handles get renamed/banned — re-probe regularly; verified=false means unreachable/unprobed at last check, not necessarily dead.",
+      "RELAY RELEVANCE GATE: a bing-routed article must mention one of that body's relevance_terms in its title or it is discarded. Bing returns articles MATCHING a query, not the agency's statements — without this gate, unrelated coverage gets attributed to a government body.",
+      "RELAY FRESHNESS: bing sources default to a 24h window; low-volume advisory bodies (UKMTO, MARAD, NetBlocks, INCD, aeCERT, Nour, Saba, Al Masirah) use relay_freshness='week' — verified 2026-07-16 that 'UKMTO' returns 0 at day and 4 real advisories at week. Their advisories stay operative until withdrawn, so the wider window is correct, not stale. Timestamps are always shown so age is never hidden.",
+      "TRANSPORT LADDER (enforced): X is the last-resort transport. Sources flagged on_demand_only=true are SKIPPED by auto-batch collection and reached ONLY via get_x_account. Iran X accounts are on_demand_only — Iran is already saturated by 9 Telegram channels + RSS, so Iran queries must not spend X credits; the Iran MFA is fetched on-demand only when the question is about diplomacy."
+    ],
+    "probe": {
+      "last_run": "2026-07-20",
+      "notes": "X token live; all X handles validated via users/by 2026-07-20. Dropped BNA_BH (dormant, 3 posts), @MofaQatar (wrong account=person), JOgov (not found) — each country covered by another verified handle. Telegram: 23 channels API-verified."
+    },
+    "change_log": [
+      {
+        "date": "2026-07-16",
+        "change": "Removed OSINT aggregator Telegram tier + cyber hacktivist claim channels (credibility). Expanded media tier to named credible outlets."
+      },
+      {
+        "date": "2026-07-16",
+        "change": "TRANSPORT REBUILD (user directive): cut to Telegram + X + Bing News RSS. Diagnosis: 30 of 61 sources were access='web' and collect.py only fetches rss/telegram — those 30 official bodies returned ZERO items, which is why official coverage was empty while the media RSS pile made noise.",
+        "removed_media_rss": [
+          "Al Jazeera English",
+          "Al Arabiya English",
+          "Arab News",
+          "Gulf News",
+          "The National (UAE)",
+          "Times of Israel",
+          "The Jerusalem Post",
+          "Haaretz",
+          "Middle East Eye",
+          "Al-Monitor",
+          "BBC News Middle East",
+          "The Guardian Middle East",
+          "France 24 Middle East",
+          "Axios",
+          "Amwaj.media",
+          "Naval News",
+          "The Record (Recorded Future News)",
+          "BleepingComputer"
+        ],
+        "removed_dead_or_redundant": [
+          "oref.org.il live alerts + alerts history (geo-blocked 403; Tzeva Adom mirror carries the same data)",
+          "Tasnim News native RSS (domain DNS-blocked; Telegram is the working Tasnim source)",
+          "IRIB News (web, no connector, no feed)",
+          "Fars News website (web; Telegram kept)",
+          "Defa Press (web, Farsi, no feed)",
+          "IDF website (web; Telegram + X kept)",
+          "OSAC (web, account-gated)",
+          "aisstream.io (phase-later, unused)",
+          "Cloudflare Radar (token-gated, phase-later)",
+          "Saudi NCA (times out; publishes no public incident intel)"
+        ],
+        "converted_web_to_bing": [
+          "BNA, Bahrain MOI, WAM, NCEMA, SPA, QNA, KUNA, ONA, Petra, NNA, INA, CENTCOM, US DoD, UKMTO, US MARAD, Saba, Al Masirah, INCD, aeCERT, NetBlocks, Nour News"
+        ],
+        "added_x_roster": "Official + media X accounts across all pillars, gated behind X_BEARER_TOKEN (inactive until set)."
+      },
+      {
+        "date": "2026-07-16",
+        "change": "PHASE 1: +21 user-supplied Telegram channels (Iran 9 new, Israel 6, Iraq 1, Yemen 3; Tasnimnews/farsna already present). All 21 handles probed alive; Tasnimnews+newsil2022 preview-disabled -> API-only. Telethon connector added (api-first, web fallback). Sabereen re-added per user directive."
+      },
+      {
+        "date": "2026-07-16",
+        "change": "Telegram API login done; 23 channels API-verified. mehrnews flagged captionless-images (verified=false), tzevaadomm flagged dormant since 2026-07-02."
+      },
+      {
+        "date": "2026-07-16",
+        "change": "Telegram over-fetch fix: scan max(limit*6,40) messages, skip captionless media, stop at limit. mehrnews 0 -> 5 items; 23/23 channels now return text. ~0.8s/channel."
+      },
+      {
+        "date": "2026-07-20",
+        "change": "PHASE 2: X live. +14 validated X accounts (officials per Gulf state+Israel+Oman, Iran Tasnim, media Al Arabiya+Barak Ravid). Existing X handles flipped verified=true. Dropped 3 bad handles."
+      },
+      {
+        "date": "2026-07-20",
+        "change": "X roster pruned to purpose (user): X = ONLY sources not already on Telegram/web. Dropped media X (Reuters, AJEnglish, TimesofIsrael, AlArabiya_Eng — all Bing-covered), kept BarakRavid/Axios. Iran X cut to IrnaEnglish+IRIMFA_EN (MFA is X-only, low-vol); dropped PressTV (on RSS+TG) and Tasnimnews_EN (on TG) as X — their RSS/Telegram entries remain."
+      }
+    ]
+  },
+  "countries": {
+    "IRAN": [
+      {
+        "name": "IRNA (Islamic Republic News Agency) — English",
+        "tier": "official",
+        "access": "rss",
+        "url": "https://en.irna.ir/rss",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "rss"
+        },
+        "source_url": "https://en.irna.ir/",
+        "notes": "Iran state news agency — carries government/armed forces statements. KEPT BY EXCEPTION (native RSS): Iran's own official voice, live-verified on-target.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "RSS/Atom feed OK",
+        "checked_at": "2026-07-15T22:05:04Z"
+      },
+      {
+        "name": "Press TV",
+        "tier": "official",
+        "access": "rss",
+        "url": "https://www.presstv.ir/rss.xml",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "rss"
+        },
+        "source_url": "https://www.presstv.ir/",
+        "notes": "Iran state English broadcaster. KEPT BY EXCEPTION (native RSS). WARNING: feed carries NO per-item dates — connector returns null timestamp; never fabricate one.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "RSS feed OK (rss.xml — /rss is an HTML page)",
+        "checked_at": "2026-07-15T22:10:26Z"
+      },
+      {
+        "name": "IRNA — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/IrnaEnglish",
+        "x_handle": "IrnaEnglish",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/IrnaEnglish",
+        "notes": "Iran state agency on X. TRANSPORT LADDER: Iran is saturated on Telegram+RSS, so this X account does NOT auto-fetch (on_demand_only) — reached only via get_x_account when the question is specifically about it (e.g. the MFA for diplomacy). Saves X credits.",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
+      },
+      {
+        "name": "Iran Ministry of Foreign Affairs — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/IRIMFA_EN",
+        "x_handle": "IRIMFA_EN",
+        "pillars": [
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/IRIMFA_EN",
+        "notes": "Iran MFA — talks, ceasefire signalling, strait rhetoric. TRANSPORT LADDER: Iran is saturated on Telegram+RSS, so this X account does NOT auto-fetch (on_demand_only) — reached only via get_x_account when the question is specifically about it (e.g. the MFA for diplomacy). Saves X credits.",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
+      },
+      {
+        "name": "Tasnim News — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/Tasnimnews",
+        "telegram": "Tasnimnews",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram_public_preview"
+        },
+        "source_url": "https://t.me/s/Tasnimnews",
+        "notes": "IRGC-linked. Strike claims and IRGC statements often surface here FIRST. The working Tasnim source (tasnimnews.com is DNS-blocked from this network).",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Fars News — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/farsna",
+        "telegram": "farsna",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram_public_preview"
+        },
+        "source_url": "https://t.me/s/farsna",
+        "notes": "IRGC-linked agency on Telegram; Gemini translates.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Mehr News — English",
+        "tier": "semi_official",
+        "access": "rss",
+        "url": "https://en.mehrnews.com/rss",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "rss"
+        },
+        "source_url": "https://en.mehrnews.com/",
+        "notes": "State-linked agency. KEPT BY EXCEPTION (native RSS) — live-verified (Hormuz 'full Iranian control' claim).",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "RSS/Atom feed OK",
+        "checked_at": "2026-07-15T22:05:03Z"
+      },
+      {
+        "name": "Nour News",
+        "tier": "semi_official",
+        "access": "bing",
+        "url": "https://nournews.ir",
+        "bing_queries": [
+          "Nour News Iran",
+          "Iran Supreme National Security Council"
+        ],
+        "pillars": [
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://nournews.ir",
+        "notes": "Linked to Iran's Supreme National Security Council — negotiation/MoU signalling. Farsi site, no feed; read via media relay.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "nour news",
+          "iran",
+          "tehran",
+          "national security council"
+        ],
+        "relay_freshness": "week"
+      },
+      {
+        "name": "IRNA — Telegram (English)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/Irna_en",
+        "telegram": "Irna_en",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/Irna_en",
+        "notes": "Iran state agency, English channel. User-supplied 2026-07-16.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Press TV — Telegram",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/presstv",
+        "telegram": "presstv",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/presstv",
+        "notes": "Iran state broadcaster. Carries timestamps the RSS lacks. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "IRIB News — Telegram (Farsi)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/iribnews",
+        "telegram": "iribnews",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/iribnews",
+        "notes": "State broadcaster main channel. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "IRIB News — Telegram (Farsi, feed)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/iribnews_fa",
+        "telegram": "iribnews_fa",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/iribnews_fa",
+        "notes": "Second IRIB channel per user list. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Mehr News — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/mehrnews",
+        "telegram": "mehrnews",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/mehrnews",
+        "notes": "Mehr state-linked agency, main Farsi channel. Posts many captionless image cards; the API connector over-fetches (scans 40) and skips them to reach real text. Verified 2026-07-16: 5 text items, 9 media skipped.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning text 2026-07-16 (via over-fetch; naive limit=5 returned 0)",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Mehr News International — Telegram",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/MehrnewsIntl",
+        "telegram": "MehrnewsIntl",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/MehrnewsIntl",
+        "notes": "Mehr international channel. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Fars Politics — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/farspolitics",
+        "telegram": "farspolitics",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/farspolitics",
+        "notes": "IRGC-linked Fars, politics desk. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Saberin News — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/SaberinFa",
+        "telegram": "SaberinFa",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/SaberinFa",
+        "notes": "IRGC-linked claim channel. CLAIMS, not statements. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Sepah Pasdaran (IRGC-affiliated) — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/sepah_pasdaran",
+        "telegram": "sepah_pasdaran",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/sepah_pasdaran",
+        "notes": "IRGC-affiliated channel, NOT a formal IRGC statement outlet — treat as semi-official claims. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      }
+    ],
+    "ISRAEL": [
+      {
+        "name": "Home Front Command (Pikud HaOref) alert data — via Tzeva Adom mirror API",
+        "tier": "official",
+        "access": "api",
+        "url": "https://api.tzevaadom.co.il/notifications",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "json",
+          "dedicated_tool": "get_israel_alerts",
+          "notes": "Returns [] when no active alerts (valid all-quiet intel). Mirrors official HFC siren data; label 'HFC alert data via Tzeva Adom mirror'."
+        },
+        "source_url": "https://www.oref.org.il/",
+        "notes": "KEPT BY EXCEPTION (JSON API): the only structured Israel siren/impact/timing feed and the only source of genuine all-quiet. oref.org.il itself geo-blocks non-Israeli IPs (403).",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API OK — returned [] (no active alerts at probe); history endpoint returns real records with unix timestamps + city lists",
+        "checked_at": "2026-07-15T22:10:26Z"
+      },
+      {
+        "name": "IDF — Telegram (English)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/idfofficial",
+        "telegram": "idfofficial",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "telegram_public_preview"
+        },
+        "source_url": "https://t.me/s/idfofficial",
+        "notes": "Fastest official IDF statement channel. Israel-Lebanon front included.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "IDF — X (English)",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/IDF",
+        "x_handle": "IDF",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/IDF",
+        "notes": "IDF official — interception/strike statements.",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "Magen David Adom — Telegram (Hebrew)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/mdaisrael",
+        "telegram": "mdaisrael",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/mdaisrael",
+        "notes": "National EMS — authoritative casualty/impact reports at strike sites. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Tzeva Adom alerts mirror — Telegram (Hebrew)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/tzevaadomm",
+        "telegram": "tzevaadomm",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/tzevaadomm",
+        "notes": "DORMANT — latest post 2026-07-02 (verified 2026-07-16 via API): NOT a live siren feed. Live Israel sirens = get_israel_alerts (Tzeva Adom API). Keep only as historical corroboration; timestamps expose staleness. Mirror of official HFC siren alerts; label 'HFC alert data via mirror'. Corroborates get_israel_alerts. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified alive but stale: last post 2026-07-02",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Amit Segal — Telegram (Hebrew)",
+        "tier": "media",
+        "access": "telegram",
+        "url": "https://t.me/s/amitseg",
+        "telegram": "amitseg",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/amitseg",
+        "notes": "Channel 12 chief political correspondent — fast, sourced Israeli political/security reporting. Named journalist, not anonymous. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Liel Daphna — Telegram (Hebrew)",
+        "tier": "media",
+        "access": "telegram",
+        "url": "https://t.me/s/lieldaphna",
+        "telegram": "lieldaphna",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/lieldaphna",
+        "notes": "Israeli news correspondent channel. Named journalist. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "News IL 2022 — Telegram (Hebrew)",
+        "tier": "media",
+        "access": "telegram",
+        "url": "https://t.me/s/newsil2022",
+        "telegram": "newsil2022",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/newsil2022",
+        "notes": "Israeli breaking-news channel. Aggregator-style: corroborate before citing as fact. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Fire Israel — Telegram (Hebrew)",
+        "tier": "media",
+        "access": "telegram",
+        "url": "https://t.me/s/fireisrael7777",
+        "telegram": "fireisrael7777",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "he",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/fireisrael7777",
+        "notes": "Israeli alerts/incidents channel. Aggregator-style: corroborate before citing as fact. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Avichay Adraee (IDF Arabic spokesman) — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/AvichayAdraee",
+        "x_handle": "AvichayAdraee",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/AvichayAdraee",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "Israel Foreign Ministry — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/IsraelMFA",
+        "x_handle": "IsraelMFA",
+        "pillars": [
+          "strategic",
+          "tactical"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/IsraelMFA",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "BAHRAIN": [
+      {
+        "name": "Bahrain News Agency (BNA)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.bna.bh/en",
+        "bing_queries": [
+          "Bahrain BNA",
+          "Bahrain sirens",
+          "Bahrain missile"
+        ],
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.bna.bh/en",
+        "notes": "State agency; carries MOI/civil defense statements, siren activations. Site 405s to scripts (WAF) — read via media relay (live-verified returning war-relevant items).",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "bahrain",
+          "manama"
+        ]
+      },
+      {
+        "name": "Bahrain Ministry of Interior",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.policemc.gov.bh",
+        "bing_queries": [
+          "Bahrain interior ministry",
+          "Bahrain civil defence"
+        ],
+        "pillars": [
+          "tactical"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.policemc.gov.bh",
+        "notes": "MOI is the siren/alert authority cited in EXAMPLES doc. Direct site times out from this network; statements relay via BNA/media within minutes.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "bahrain",
+          "manama"
+        ]
+      },
+      {
+        "name": "Bahrain Ministry of Interior — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/moi_bahrain",
+        "x_handle": "moi_bahrain",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/moi_bahrain",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "UAE": [
+      {
+        "name": "WAM (Emirates News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.wam.ae/en",
+        "bing_queries": [
+          "WAM Emirates news",
+          "site:wam.ae"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.wam.ae/en",
+        "notes": "State agency; carries NCEMA and MOD statements. No native RSS (JS-rendered index) — site: query verified returning WAM items with direct links.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "uae",
+          "emirates",
+          "dubai",
+          "abu dhabi",
+          "wam"
+        ]
+      },
+      {
+        "name": "NCEMA (National Emergency Crisis and Disasters Management Authority)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.ncema.gov.ae",
+        "bing_queries": [
+          "NCEMA UAE",
+          "UAE emergency authority"
+        ],
+        "pillars": [
+          "tactical"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.ncema.gov.ae",
+        "notes": "The UAE alert authority quoted in EXAMPLES doc. Posts X-FIRST — the X source below closes that gap. Bing relay live-verified returning NCEMA statements verbatim.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16 ('NCEMA confirms stability...')",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "ncema",
+          "uae",
+          "emirates"
+        ]
+      },
+      {
+        "name": "NCEMA — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/NCEMAUAE",
+        "x_handle": "NCEMAUAE",
+        "pillars": [
+          "tactical"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/NCEMAUAE",
+        "notes": "NCEMA posts to X first — this is the primary NCEMA line once X is live.",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "WAM (Emirates News Agency) English — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/WAMNEWS_ENG",
+        "x_handle": "WAMNEWS_ENG",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/WAMNEWS_ENG",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "UAE Foreign Ministry — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/mofauae",
+        "x_handle": "mofauae",
+        "pillars": [
+          "strategic",
+          "tactical"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/mofauae",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "SAUDI_ARABIA": [
+      {
+        "name": "SPA (Saudi Press Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.spa.gov.sa/en",
+        "bing_queries": [
+          "Saudi Press Agency",
+          "Saudi air defence intercept"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.spa.gov.sa/en",
+        "notes": "State agency; MOD/civil defense interception statements.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "saudi",
+          "riyadh",
+          "spa"
+        ]
+      },
+      {
+        "name": "Saudi Press Agency (SPA) — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/spagov",
+        "x_handle": "spagov",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/spagov",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "Saudi Foreign Ministry — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/KSAMOFA",
+        "x_handle": "KSAMOFA",
+        "pillars": [
+          "strategic",
+          "tactical"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/KSAMOFA",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "QATAR": [
+      {
+        "name": "QNA (Qatar News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.qna.org.qa/en",
+        "bing_queries": [
+          "Qatar News Agency",
+          "Qatar Al Udeid"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.qna.org.qa/en",
+        "notes": "State agency. Al Udeid air base is the key Qatar strike location.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "qatar",
+          "doha",
+          "udeid",
+          "qna"
+        ]
+      },
+      {
+        "name": "QNA (Qatar News Agency) English — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/QNAEnglish",
+        "x_handle": "QNAEnglish",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/QNAEnglish",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "KUWAIT": [
+      {
+        "name": "KUNA (Kuwait News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.kuna.net.kw",
+        "bing_queries": [
+          "Kuwait KUNA",
+          "Kuwait interception"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.kuna.net.kw",
+        "notes": "State agency. Site times out from this network (geo-restriction); relay verified returning official interception/MOD items.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "kuwait",
+          "kuna"
+        ]
+      },
+      {
+        "name": "KUNA (Kuwait News Agency) English — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/kuna_en",
+        "x_handle": "kuna_en",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/kuna_en",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "OMAN": [
+      {
+        "name": "Oman News Agency (ONA)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://omannews.gov.om",
+        "bing_queries": [
+          "Oman News Agency",
+          "Oman Iran talks"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://omannews.gov.om",
+        "notes": "State agency; KEY for Iran-Oman strait-management talks (EXAMPLES pillar 2) — Oman is the mediation channel.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "oman",
+          "muscat"
+        ]
+      },
+      {
+        "name": "Oman News Agency (ONA) — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/OmanNewsAgency",
+        "x_handle": "OmanNewsAgency",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/OmanNewsAgency",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "JORDAN": [
+      {
+        "name": "Petra (Jordan News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://petra.gov.jo",
+        "bing_queries": [
+          "Jordan Petra news agency",
+          "Jordan airspace"
+        ],
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://petra.gov.jo",
+        "notes": "State agency; airbase-strike reporting (Al Azraq / Muwaffaq Salti in EXAMPLES).",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "jordan",
+          "amman",
+          "petra",
+          "azraq",
+          "muwaffaq"
+        ]
+      },
+      {
+        "name": "Petra (Jordan News Agency) — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/Petranews",
+        "x_handle": "Petranews",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/Petranews",
+        "notes": "",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      }
+    ],
+    "LEBANON": [
+      {
+        "name": "NNA (National News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.nna-leb.gov.lb/en",
+        "bing_queries": [
+          "Lebanon National News Agency",
+          "Israel Lebanon strike"
+        ],
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.nna-leb.gov.lb/en",
+        "notes": "Official Lebanese agency — Israel-Lebanon front coverage.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "lebanon",
+          "lebanese",
+          "beirut",
+          "hezbollah"
+        ]
+      }
+    ],
+    "IRAQ": [
+      {
+        "name": "INA (Iraqi News Agency)",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://ina.iq/eng",
+        "bing_queries": [
+          "Iraqi News Agency",
+          "Iraq base attack"
+        ],
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://ina.iq/eng",
+        "notes": "US bases in Iraq (Ain al-Asad, Erbil) are plausible strike locations. Site 403s to scripts.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "iraq",
+          "iraqi",
+          "baghdad",
+          "erbil",
+          "asad"
+        ]
+      },
+      {
+        "name": "Sabereen News — Telegram (Arabic)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/SabrenNewss",
+        "telegram": "SabrenNewss",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/SabrenNewss",
+        "notes": "Iraqi militia-linked (resistance-axis) channel — where Iraq-theater strike claims surface first. CLAIMS, not statements. Previously removed as anonymous-OSINT 2026-07-16; RE-ADDED same day by explicit user directive as the Iraq channel, re-tiered semi_official (actor-linked, not anonymous aggregator).",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      }
+    ],
+    "YEMEN_HOUTHIS": [
+      {
+        "name": "Yemeni Armed Forces (Houthi) military media — Telegram",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/army21ye",
+        "telegram": "army21ye",
+        "pillars": [
+          "tactical",
+          "maritime"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "telegram_public_preview"
+        },
+        "source_url": "https://t.me/s/army21ye",
+        "notes": "The Houthi military-media channel cited in EXAMPLES doc (airport/port threat videos, Yahya Saree strike claims). 'Official' for the Houthi de-facto authority, NOT an internationally recognized government — the only direct Houthi strike-claim line.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Saba News Agency (Sanaa/Houthi-run)",
+        "tier": "semi_official",
+        "access": "bing",
+        "url": "https://www.saba.ye/en",
+        "bing_queries": [
+          "Saba news agency Yemen",
+          "Houthi statement"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.saba.ye/en",
+        "notes": "Houthi-controlled version of Saba.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "yemen",
+          "houthi",
+          "sanaa",
+          "saba"
+        ],
+        "relay_freshness": "week"
+      },
+      {
+        "name": "Al Masirah TV",
+        "tier": "semi_official",
+        "access": "bing",
+        "url": "https://english.almasirah.net.ye",
+        "bing_queries": [
+          "Al Masirah",
+          "Houthi Red Sea vessel"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://english.almasirah.net.ye",
+        "notes": "Houthi outlet; attack claims and threat rhetoric.",
+        "verified": true,
+        "verify_note": "routed via Bing relay",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "houthi",
+          "yemen",
+          "masirah",
+          "red sea"
+        ],
+        "relay_freshness": "week"
+      },
+      {
+        "name": "Houthi Military Media — Telegram (Arabic)",
+        "tier": "official",
+        "access": "telegram",
+        "url": "https://t.me/s/MilitaryMediaY",
+        "telegram": "MilitaryMediaY",
+        "pillars": [
+          "tactical",
+          "maritime"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/MilitaryMediaY",
+        "notes": "Second Houthi military-media channel (alongside army21ye). Official-for-Houthis. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Al Masirah English — Telegram",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/Almasirah_En",
+        "telegram": "Almasirah_En",
+        "pillars": [
+          "tactical",
+          "maritime"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/Almasirah_En",
+        "notes": "Houthi outlet, English channel — direct source; faster than the Bing relay entry. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      },
+      {
+        "name": "Al Masirah — Telegram (Arabic)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/almasirah2",
+        "telegram": "almasirah2",
+        "pillars": [
+          "tactical",
+          "maritime"
+        ],
+        "language": "ar",
+        "connector": {
+          "format": "telegram"
+        },
+        "source_url": "https://t.me/s/almasirah2",
+        "notes": "Houthi outlet, main Arabic channel. User-supplied.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified returning items 2026-07-16",
+        "checked_at": "2026-07-16"
+      }
+    ],
+    "US": [
+      {
+        "name": "US CENTCOM",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.centcom.mil/MEDIA/PRESS-RELEASES/",
+        "bing_queries": [
+          "CENTCOM",
+          "CENTCOM Iran strike"
+        ],
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.centcom.mil/",
+        "notes": "Strike confirmations, blockade announcements — the body EXAMPLES checks against ('CENTCOM has not confirmed'). Site 403s to scripts; relay live-verified.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "centcom",
+          "central command"
+        ]
+      },
+      {
+        "name": "US CENTCOM — X",
+        "tier": "official",
+        "access": "x",
+        "url": "https://x.com/CENTCOM",
+        "x_handle": "CENTCOM",
+        "pillars": [
+          "tactical",
+          "maritime",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "x_recent_search"
+        },
+        "source_url": "https://x.com/CENTCOM",
+        "notes": "CENTCOM posts confirmations to X well before the press-release page updates — the highest-value X account for corroborating Iranian claims.",
+        "verified": true,
+        "verify_note": "handle validated via X users/by lookup 2026-07-20",
+        "checked_at": "2026-07-20"
+      },
+      {
+        "name": "US DoD",
+        "tier": "official",
+        "access": "bing",
+        "url": "https://www.defense.gov/News/Releases/",
+        "bing_queries": [
+          "Department of Defense Iran",
+          "Pentagon Iran"
+        ],
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "bing_news_relay"
+        },
+        "source_url": "https://www.defense.gov/",
+        "notes": "SecDef statements, force posture. Site 403s to scripts; relay verified.",
+        "verified": true,
+        "verify_note": "routed via Bing relay — verified 2026-07-16",
+        "checked_at": "2026-07-16",
+        "relevance_terms": [
+          "pentagon",
+          "department of defense",
+          "defense department",
+          "defence ministry",
+          "secdef",
+          "hegseth"
+        ]
+      },
+      {
+        "name": "US State Dept — travel advisories RSS",
+        "tier": "official",
+        "access": "rss",
+        "url": "https://travel.state.gov/_res/rss/TAsTWs.xml",
+        "pillars": [
+          "tactical",
+          "strategic"
+        ],
+        "language": "en",
+        "connector": {
+          "format": "rss"
+        },
+        "source_url": "https://travel.state.gov/",
+        "notes": "KEPT BY EXCEPTION (native RSS): single low-noise official feed. Advisory-level changes for Gulf countries; embassy consular suspensions (EXAMPLES #3).",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "RSS/Atom feed OK",
+        "checked_at": "2026-07-15T22:05:13Z"
+      }
+    ]
+  },
+  "maritime": [
+    {
+      "name": "UKMTO (UK Maritime Trade Operations)",
+      "tier": "official",
+      "access": "bing",
+      "url": "https://www.ukmto.org",
+      "bing_queries": [
+        "UKMTO",
+        "UKMTO incident Gulf of Oman"
+      ],
+      "pillars": [
+        "maritime"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "bing_news_relay"
+      },
+      "source_url": "https://www.ukmto.org/",
+      "notes": "THE authoritative incident/advisory channel for Gulf/Hormuz/Red Sea. Posts X-FIRST — the X source below closes that gap.",
+      "verified": true,
+      "verify_note": "routed via Bing relay",
+      "checked_at": "2026-07-16",
+      "relevance_terms": [
+        "ukmto",
+        "vessel",
+        "tanker",
+        "ship",
+        "maritime",
+        "hormuz",
+        "gulf of oman",
+        "red sea"
+      ],
+      "relay_freshness": "week"
+    },
+    {
+      "name": "UKMTO — X",
+      "tier": "official",
+      "access": "x",
+      "url": "https://x.com/UK_MTO",
+      "x_handle": "UK_MTO",
+      "pillars": [
+        "maritime"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "x_recent_search"
+      },
+      "source_url": "https://x.com/UK_MTO",
+      "notes": "UKMTO publishes incident advisories (vessel attacked, position, time) to X first — the single highest-value maritime X account.",
+      "verified": true,
+      "verify_note": "handle validated via X users/by lookup 2026-07-20",
+      "checked_at": "2026-07-20"
+    },
+    {
+      "name": "US MARAD — MSCI advisories",
+      "tier": "official",
+      "access": "bing",
+      "url": "https://www.maritime.dot.gov/msci-advisories",
+      "bing_queries": [
+        "MARAD advisory",
+        "Strait of Hormuz shipping advisory"
+      ],
+      "pillars": [
+        "maritime"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "bing_news_relay"
+      },
+      "source_url": "https://www.maritime.dot.gov/msci-advisories",
+      "notes": "US Maritime Administration advisories — strait risk levels, blockade notices.",
+      "verified": true,
+      "verify_note": "routed via Bing relay",
+      "checked_at": "2026-07-16",
+      "relevance_terms": [
+        "marad",
+        "msci",
+        "shipping",
+        "tanker",
+        "hormuz",
+        "maritime advisory",
+        "vessel"
+      ],
+      "relay_freshness": "week"
+    }
+  ],
+  "cyber": [
+    {
+      "name": "NetBlocks",
+      "tier": "media",
+      "access": "bing",
+      "url": "https://netblocks.org",
+      "bing_queries": [
+        "NetBlocks Iran",
+        "NetBlocks internet outage"
+      ],
+      "pillars": [
+        "cyber"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "bing_news_relay"
+      },
+      "source_url": "https://netblocks.org/",
+      "notes": "Internet observatory — connectivity outages, submarine-cable cuts, data-center/ISP disruption. CORE for the fiber-optic-cable / data-center threat requirement. Credible measurement org (media tier, not OSINT aggregator).",
+      "verified": true,
+      "verify_note": "routed via Bing relay",
+      "checked_at": "2026-07-16",
+      "relevance_terms": [
+        "netblocks",
+        "internet",
+        "outage",
+        "connectivity",
+        "cable",
+        "data center",
+        "data centre"
+      ],
+      "relay_freshness": "week"
+    },
+    {
+      "name": "Israel National Cyber Directorate (INCD)",
+      "tier": "official",
+      "access": "bing",
+      "url": "https://www.gov.il/en/departments/israel_national_cyber_directorate",
+      "bing_queries": [
+        "Israel National Cyber Directorate",
+        "Israel cyber warning"
+      ],
+      "pillars": [
+        "cyber"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "bing_news_relay"
+      },
+      "source_url": "https://www.gov.il/en/departments/israel_national_cyber_directorate",
+      "notes": "Israeli national cyber alerts. gov.il + cyber.gov.il both 403 to scripts; relay live-verified returning INCD warnings verbatim.",
+      "verified": true,
+      "verify_note": "routed via Bing relay — verified 2026-07-16",
+      "checked_at": "2026-07-16",
+      "relevance_terms": [
+        "cyber",
+        "incd",
+        "hack",
+        "phishing",
+        "malware",
+        "ransomware",
+        "breach"
+      ],
+      "relay_freshness": "week"
+    },
+    {
+      "name": "aeCERT (UAE)",
+      "tier": "official",
+      "access": "bing",
+      "url": "https://www.tdra.gov.ae/en/aecert",
+      "bing_queries": [
+        "aeCERT UAE",
+        "UAE cyber attack"
+      ],
+      "pillars": [
+        "cyber"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "bing_news_relay"
+      },
+      "source_url": "https://www.tdra.gov.ae/en/aecert",
+      "notes": "UAE national CERT advisories.",
+      "verified": true,
+      "verify_note": "routed via Bing relay",
+      "checked_at": "2026-07-16",
+      "relevance_terms": [
+        "cyber",
+        "aecert",
+        "hack",
+        "phishing",
+        "malware",
+        "ransomware",
+        "breach"
+      ],
+      "relay_freshness": "week"
+    }
+  ],
+  "media": [
+    {
+      "name": "Bing News RSS — query connector",
+      "tier": "media",
+      "access": "api",
+      "url": "https://www.bing.com/news/search?format=rss",
+      "pillars": [
+        "tactical",
+        "maritime",
+        "strategic",
+        "cyber"
+      ],
+      "language": "en",
+      "country": null,
+      "connector": {
+        "format": "rss",
+        "dedicated_tool": "get_media_reporting",
+        "reuse": "mena_bot/connectors/news.py — aggregator domain-filter + strict date window",
+        "params": "q=<simple query>&format=rss&qft=interval 7=24h/8=week/9=month"
+      },
+      "source_url": "https://www.bing.com/news/",
+      "notes": "THE media tier — one connector reaching every credible named outlet on demand (Al Jazeera, Reuters, AP, Times of Israel, Arab News, Gulf News, The National, JPost, Haaretz, BBC, Guardian, Axios...) instead of 16 standing feeds. ALSO the relay transport for every `access: bing` official body. Keep queries SIMPLE.",
+      "verified": true,
+      "http_status": 200,
+      "verify_note": "query endpoint reachable — live-verified returning official statements",
+      "checked_at": "2026-07-16"
+    },
+    {
+      "name": "Barak Ravid (Axios) — X",
+      "tier": "media",
+      "access": "x",
+      "url": "https://x.com/BarakRavid",
+      "x_handle": "BarakRavid",
+      "pillars": [
+        "strategic"
+      ],
+      "language": "en",
+      "connector": {
+        "format": "x_recent_search"
+      },
+      "source_url": "https://x.com/BarakRavid",
+      "notes": "",
+      "verified": true,
+      "verify_note": "handle validated via X users/by lookup 2026-07-20",
+      "checked_at": "2026-07-20"
+    }
+  ]
+}

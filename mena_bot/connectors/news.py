@@ -1,0 +1,214 @@
+"""Media reporting + official-fallback connector — Bing News RSS (free, no key).
+
+Two jobs:
+1. MEDIA layer — journalists' reporting, cited separately from official data.
+2. Verified FALLBACK for officials that block scripted access (CENTCOM, DoD,
+   NCEMA, KUNA, BNA, INCD...) — their statements reach the wires within minutes;
+   a simple Bing query surfaces them with direct article links (verified
+   2026-07-16: "NCEMA confirms stability...", "CENTCOM announces second wave...").
+
+RULE (from Phase-0 testing): keep queries SIMPLE — 1-3 words plus a country or
+agency name. Complex boolean queries degrade to noise (verified: a boolean
+Bahrain query returned horoscopes). Bing was chosen over Google News because
+Google encrypts article URLs; Bing exposes the real link.
+
+No `from __future__ import annotations` — Gemini AFC needs runtime signatures.
+"""
+import urllib.parse
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from xml.etree import ElementTree as ET
+
+import requests
+
+from ..config import BROWSER_HEADERS, HTTP_TIMEOUT
+from ._common import make_item
+
+_SEARCH_URL = "https://www.bing.com/news/search"
+_FRESHNESS = {"day": "7", "week": "8", "month": "9"}
+_MAX_AGE = {"day": timedelta(hours=27), "week": timedelta(days=8),
+            "month": timedelta(days=32)}
+
+# Aggregators / syndication mirrors are not acceptable citations.
+# Also blocked: user-generated blog platforms that ride a credible outlet's
+# domain. blogs.timesofisrael.com is ToI's open blogging platform, NOT its
+# newsroom — it surfaced an opinion post as cyber intel (verified 2026-07-16).
+# The media tier is credible NAMED outlets with editorial standards; a reader
+# seeing "timesofisrael.com" would wrongly assume editorial review.
+_BLOCKED_DOMAINS = (
+    "msn.com", "aol.com", "yahoo.com", "bing.com", "news.google.com",
+    "flipboard.com", "newsbreak.com", "smartnews.com", "ground.news",
+    "blogs.timesofisrael.com", "medium.com", "substack.com",
+)
+
+
+def _blocked(url):
+    host = urllib.parse.urlparse(url).netloc.lower()
+    return any(host == d or host.endswith("." + d) for d in _BLOCKED_DOMAINS)
+
+
+def _direct_url(link):
+    if "apiclick" in link:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(link).query)
+        target = q.get("url", [None])[0]
+        if target:
+            return target
+    return link
+
+
+def _outlet(url):
+    host = urllib.parse.urlparse(url).netloc
+    return host[4:] if host.startswith("www.") else host
+
+
+# CREDIBLE-MEDIA MANDATE (user directive 2026-07-21): the media tier is
+# ENFORCED to established newsrooms from the WEST or the MIDDLE EAST only, plus
+# recognized global maritime/cyber/energy specialist desks (topical authorities
+# on this beat). Anything else — Indian/Asian general dailies, Russian/Chinese
+# state media, crypto blogs, local US TV, aggregators — is DROPPED, not merely
+# flagged. This is a shift from the earlier annotate-only policy: get_media_
+# reporting now FILTERS. Tradeoff accepted by the user: some genuine
+# non-West/MENA reporting (e.g. Indian outlets on Hormuz shipping) is excluded;
+# if it matters, a West/MENA wire (Reuters/AP/Al Arabiya) almost always carries
+# it too. To broaden, add a domain here.
+_CREDIBLE_OUTLETS = (
+    # --- WEST: wires + US/UK/EU/AU majors ---
+    "reuters.com", "apnews.com", "afp.com", "upi.com", "bbc.com", "bbc.co.uk",
+    "theguardian.com", "ft.com", "wsj.com", "nytimes.com", "telegraph.co.uk",
+    "washingtonpost.com", "cnn.com", "cbsnews.com", "nbcnews.com",
+    "abcnews.go.com", "foxnews.com", "cnbc.com", "thehill.com", "newsweek.com",
+    "time.com", "usatoday.com", "latimes.com", "npr.org", "pbs.org",
+    "politico.com", "axios.com", "bloomberg.com", "economist.com",
+    "independent.co.uk", "thetimes.co.uk", "sky.com", "standard.co.uk",
+    "france24.com", "dw.com", "euronews.com", "lemonde.fr", "spiegel.de",
+    "elpais.com", "theatlantic.com", "abc.net.au",
+    # West defense/security specialists
+    "defensenews.com", "breakingdefense.com", "janes.com", "warontherocks.com",
+    "stripes.com", "militarytimes.com", "thewarzone.com",
+    # --- MIDDLE EAST: pan-regional + Gulf + Israel + Turkey ---
+    "aljazeera.com", "alarabiya.net", "alhurra.com", "middleeasteye.net",
+    "al-monitor.com", "amwaj.media", "aawsat.com", "thenationalnews.com",
+    "iranintl.com", "radiofarda.com", "rferl.org",
+    "aa.com.tr", "trtworld.com",  # Turkey (regional wires)
+    "arabnews.com", "gulfnews.com", "khaleejtimes.com", "arabtimesonline.com",
+    "thepeninsulaqatar.com", "gulf-times.com", "kuna.net.kw", "wam.ae",
+    "bna.bh", "spa.gov.sa", "qna.org.qa", "zawya.com", "newsofbahrain.com",
+    "timesofisrael.com", "jpost.com", "haaretz.com", "ynetnews.com",
+    "israelnationalnews.com", "i24news.tv",
+    # --- GLOBAL SPECIALIST AUTHORITIES on this beat (topic, not geography) ---
+    # maritime
+    "lloydslist.com", "tradewindsnews.com", "maritime-executive.com",
+    "navalnews.com", "gcaptain.com", "seatrade-maritime.com",
+    # energy (strait/tanker economics)
+    "argusmedia.com", "spglobal.com", "rigzone.com", "oilprice.com",
+    # cyber
+    "therecord.media", "bleepingcomputer.com", "thehackernews.com",
+    "securityweek.com", "netblocks.org", "darkreading.com", "wired.com",
+)
+
+
+def _credible(url):
+    """True if the outlet is a credible West/MENA newsroom or specialist desk.
+    Blocked domains never qualify (a blog platform must not inherit its parent
+    domain's credibility: blogs.timesofisrael.com endswith .timesofisrael.com)."""
+    if _blocked(url):
+        return False
+    host = urllib.parse.urlparse(url).netloc.lower()
+    return any(host == d or host.endswith("." + d) for d in _CREDIBLE_OUTLETS)
+
+
+def get_media_reporting(query: str, freshness: str = "day",
+                        max_items: int = 6) -> dict:
+    """Search recent NEWS ARTICLES about the conflict (media layer, UNOFFICIAL).
+
+    Also the fallback for official bodies that block direct access (CENTCOM, US
+    DoD, NCEMA, KUNA, Bahrain BNA/MOI, INCD): a simple query surfaces their
+    statements via wire coverage with direct links.
+
+    RULES: present media under a separate "unofficial / media" section, cite
+    each as outlet + publish date + direct link, never let it drive a
+    "confirmed" status. Aggregators and undated/stale items are filtered here.
+    If count == 0, say so — do not substitute weaker sources.
+
+    Args:
+        query: SIMPLE terms — 1-3 words + a place/agency, e.g. "CENTCOM",
+            "Bahrain sirens", "Strait of Hormuz tanker", "NCEMA UAE".
+        freshness: "day" (default — war moves fast), "week", or "month".
+        max_items: max articles.
+
+    Returns:
+        {"ok": True, "query", "count", "retrieved_utc", "excluded",
+         "items": [normalized item with tier="media"...]}
+    """
+    fresh_key = freshness.strip().lower()
+    interval = _FRESHNESS.get(fresh_key, "7")
+    max_age = _MAX_AGE.get(fresh_key, _MAX_AGE["day"])
+    params = {"q": query, "format": "rss", "qft": f'interval="{interval}"'}
+    try:
+        resp = requests.get(_SEARCH_URL, params=params, headers=BROWSER_HEADERS,
+                            timeout=HTTP_TIMEOUT)
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
+    except requests.RequestException as e:
+        return {"ok": False, "query": query, "error": f"news search failed: {e}"}
+    except ET.ParseError as e:
+        return {"ok": False, "query": query, "error": f"news parse error: {e}"}
+
+    now = datetime.now(timezone.utc)
+    items = []
+    excluded = {"aggregator": 0, "stale_or_undated": 0, "not_credible": 0}
+    for it in root.findall(".//item"):
+        url = _direct_url(it.findtext("link") or "")
+        if not url or _blocked(url):
+            excluded["aggregator"] += 1
+            continue
+        # CREDIBLE-MEDIA MANDATE: drop non-West/MENA and non-specialist outlets
+        # outright — the model never even sees them, so it cannot cite them.
+        if not _credible(url):
+            excluded["not_credible"] += 1
+            continue
+        pub_raw = it.findtext("pubDate")
+        try:
+            pub = parsedate_to_datetime(pub_raw)
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            pub = None
+        if pub is None or now - pub > max_age:
+            excluded["stale_or_undated"] += 1
+            continue
+        items.append(make_item(
+            source=_outlet(url) or "unknown", tier="media",
+            text=(it.findtext("title") or "").strip(),
+            timestamp_utc=pub.astimezone(timezone.utc).isoformat(),
+            timestamp_raw=pub_raw, link=url, source_url=url,
+            extra={"outlet_vetted": True},  # all survivors are credible
+        ))
+        if len(items) >= max_items:
+            break
+
+    items.sort(key=lambda i: i.get("timestamp_utc") or "", reverse=True)
+    return {
+        "ok": True,
+        "source": "Bing News (credible West/MENA media — UNOFFICIAL)",
+        "query": query,
+        "count": len(items),
+        "vetted_count": len(items),
+        "excluded": excluded,
+        "retrieved_utc": now.isoformat(),
+        "items": items,
+        "note": ("MEDIA CLAIMS or wire relay of official statements. Cite the "
+                 "outlet; corroboration, not confirmation. Every item here is "
+                 "already a CREDIBLE West/MENA newsroom or specialist desk — "
+                 "non-credible and non-West/MENA outlets, aggregators, and "
+                 "stale/undated items were dropped (see `excluded`). count=0 -> "
+                 "say 'No credible West/MENA media coverage retrieved' — do NOT "
+                 "fall back to weaker sources."),
+    }
+
+
+if __name__ == "__main__":
+    r = get_media_reporting("CENTCOM", freshness="week", max_items=5)
+    print(r["ok"], r.get("count"), r.get("excluded"))
+    for it in r.get("items", []):
+        print("  ", it["source"], "|", (it["text"] or "")[:60], "|", it["timestamp_raw"])
