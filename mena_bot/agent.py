@@ -10,6 +10,8 @@ automatic function calling); tool signatures use plain runtime types; the client
 is held on an object so its HTTP transport isn't garbage-collected; source-line
 links are guaranteed in code, not left to the model.
 """
+import threading
+
 from google import genai
 from google.genai import types
 
@@ -18,9 +20,11 @@ from .config import GEMINI_MODEL, require_gemini_key, x_configured
 from .connectors.geocode import geocode_place
 from .connectors.news import get_media_reporting
 from .connectors.tzevaadom import get_israel_alerts
-from .connectors.telegram_api import fetch_telegram_best, search_channels
+from .connectors.telegram_api import (fetch_telegram_best, search_channels,
+                                      match_channels_by_image)
 from .connectors.x_api import fetch_x
 from .data_loader import load_sources
+from .imagehash import dhash_bytes
 from .prompt import SYSTEM_PROMPT
 from .sources import find_sources, select_sources, resolve_country
 from .connectors._common import now_utc_iso
@@ -262,6 +266,86 @@ def get_x_account(handle: str, hours: int = 0) -> dict:
     return fetch_x([key], meta_map, limit=limit, since_hours=hours or 0)
 
 
+# ---- uploaded-image handoff (reverse-image search) -------------------------
+# A Gemini tool receives JSON arguments, never bytes, so find_image_source cannot
+# be handed the uploaded image directly. Instead MenaChat.send() computes the
+# image's perceptual hash and stashes it here immediately before send_message();
+# the tool reads it during that same turn and it is cleared afterwards.
+#
+# THREAD-LOCAL because google-genai runs automatic function calls SYNCHRONOUSLY
+# in the SAME thread as send_message, and Streamlit runs each session on its own
+# ScriptRunner thread — so two analysts uploading at once never see each other's
+# image. If the SDK ever ran a tool off-thread the local would read empty and the
+# tool would honestly report "no image this turn" rather than match the wrong one.
+_UPLOAD = threading.local()
+
+
+def _set_upload_hashes(hashes):
+    _UPLOAD.hashes = list(hashes or [])
+
+
+def _get_upload_hashes():
+    return list(getattr(_UPLOAD, "hashes", []) or [])
+
+
+def _clear_upload_hashes():
+    _UPLOAD.hashes = []
+
+
+def find_image_source(hours: int = 48, channel: str = "") -> dict:
+    """REVERSE-IMAGE SEARCH the vetted Telegram channels for an image the user
+    UPLOADED this turn — finds the exact photo by its pixels, not its caption.
+
+    USE THIS as the SECOND step for an uploaded IMAGE, AFTER search_telegram:
+    when caption search does not surface the post — because the reposting channel
+    wrote a different caption, or none — this matches the IMAGE ITSELF (perceptual
+    hash) and returns the specific t.me/<channel>/<id> posts carrying it.
+
+    SCOPE IT FOR SPEED — it downloads photos, so it is the heaviest tool. If a
+    caption search already pointed at a likely channel, pass that `channel` to
+    match ONLY it (seconds). With no channel it sweeps every vetted channel under
+    a total-download cap and may return truncated=true (PARTIAL coverage — then a
+    null result is NOT proof of absence; narrow the channel or widen hours).
+
+    Matches come back closest-first. `distance` is the Hamming distance: 0 =
+    identical, small (<=10) = the same image recompressed on repost. The EARLIEST
+    close match is the likely originator; later ones are reposts. A large
+    `closest_miss` is a DIFFERENT image — never present it as a match. If count=0,
+    the image was not found: say so honestly and do NOT substitute a channel
+    homepage.
+
+    Args:
+        hours: how far back to search photo posts (default 48; widen to 168+ for
+            an older image).
+        channel: optional single vetted channel handle to restrict to (e.g.
+            "farsna"). Leave empty to sweep all vetted channels.
+    """
+    hashes = _get_upload_hashes()
+    if not hashes:
+        return {"ok": True, "count": 0, "matches": [], "no_image": True,
+                "note": ("No image was uploaded this turn (or the attachment was "
+                         "a PDF / could not be decoded). find_image_source only "
+                         "works on an image the user attached — use "
+                         "search_telegram for text/topic questions.")}
+    sources = [s for s in select_sources() if s.get("access") == "telegram"]
+    if channel:
+        want = channel.lstrip("@").lower()
+        sources = [s for s in sources
+                   if (s.get("telegram") or "").lower() == want]
+        if not sources:
+            return {"ok": True, "count": 0, "matches": [],
+                    "note": (f"'{channel}' is not a vetted Telegram channel. Omit "
+                             "the channel filter to sweep all vetted channels, or "
+                             "pass a known handle (e.g. farsna, sepah_pasdaran, "
+                             "army21ye).")}
+        # Scoped to one channel: afford a deeper, more generous search.
+        return match_channels_by_image(hashes, sources, hours=hours,
+                                       per_channel=80, max_downloads=120)
+    # Unscoped sweep: keep per-channel small so the total cap spreads across many.
+    return match_channels_by_image(hashes, sources, hours=hours,
+                                   per_channel=15, max_downloads=150)
+
+
 # Israel alerts, media, geocode, find_sources imported directly as tools.
 
 TOOLS = [
@@ -274,6 +358,7 @@ TOOLS = [
     get_media_reporting,
     get_telegram_channel,
     search_telegram,
+    find_image_source,
     get_x_account,
     find_sources,
 ]
@@ -362,6 +447,7 @@ class MenaChat:
         model can OCR/read them and then call the tools to corroborate — see the
         UPLOADED FILE rules in the system prompt.
         """
+        upload_hashes = []
         if attachments:
             parts = []
             for a in attachments:
@@ -370,16 +456,32 @@ class MenaChat:
                         data=a["data"], mime_type=a.get("mime") or "application/octet-stream"))
                 except Exception:
                     continue
+                # Perceptual-hash uploaded IMAGES for reverse-image search
+                # (find_image_source). Skip non-images (PDFs) — nothing to match.
+                if (a.get("mime") or "").startswith("image/"):
+                    h = dhash_bytes(a.get("data"))
+                    if h is not None:
+                        upload_hashes.append(h)
             names = ", ".join(a.get("name", "file") for a in attachments)
+            img_hint = (" If caption search does not find an uploaded image, use "
+                        "find_image_source to match it by image." if upload_hashes
+                        else "")
             parts.append(types.Part.from_text(text=(
                 (user_message or "").strip()
                 + f"\n\n[User attached: {names}. Follow the UPLOADED FILE rules: "
                   "extract/translate the content, then use the tools to find it "
-                  "in the real sources and report corroboration status.]")))
+                  "in the real sources and report corroboration status." + img_hint
+                  + "]")))
             message = parts
         else:
             message = user_message
-        resp = self._chat.send_message(message)
+
+        # Hand the uploaded image's hash to find_image_source for THIS turn only.
+        _set_upload_hashes(upload_hashes)
+        try:
+            resp = self._chat.send_message(message)
+        finally:
+            _clear_upload_hashes()
         return _linkify_sources(resp.text or "(no text returned)")
 
 

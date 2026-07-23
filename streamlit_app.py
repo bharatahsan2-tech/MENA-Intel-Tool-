@@ -157,7 +157,8 @@ def _run_chat():
         with st.chat_message(role, avatar="🛰️" if role == "assistant" else "🧭"):
             st.markdown(msg)
 
-    typed = st.chat_input("Ask, or attach a screenshot / PDF to source…",
+    typed = st.chat_input("Ask, or attach an image / PDF to source & reverse-image "
+                          "search across the vetted channels…",
                           accept_file=True,
                           file_type=["png", "jpg", "jpeg", "webp", "pdf"])
     pending = st.session_state.pop("pending", None)
@@ -191,7 +192,8 @@ def _run_chat():
                 if (f.type or "").startswith("image/"):
                     st.image(f.getvalue(), width=260)
         with st.chat_message("assistant", avatar="🛰️"):
-            msg = "Reading the file & sourcing it…" if attachments \
+            msg = "Reading the file, then caption + reverse-image searching the " \
+                "channels…" if attachments \
                 else "Gathering live intel across sources…"
             with st.spinner(msg):
                 try:

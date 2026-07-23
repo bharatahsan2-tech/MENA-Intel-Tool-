@@ -2,5 +2,6 @@ google-genai>=0.3.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 telethon>=1.36
+Pillow>=10.0  # upload preview + perceptual-hash reverse-image search (imagehash.py)
 tzdata>=2024.1  ; platform_system == "Windows"  # IANA tz db for DST-correct local time
 streamlit>=1.36  # Phase 3 UI (chat + daily digest)
