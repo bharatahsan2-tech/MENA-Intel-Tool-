@@ -43,18 +43,22 @@ def _not_configured(handles):
     }
 
 
-def fetch_x(handles, source_meta_by_handle=None, limit=10, freshness_hours=24):
+def fetch_x(handles, source_meta_by_handle=None, limit=10, since_hours=0):
     """Read recent posts from a batch of X accounts in ONE query.
 
     Args:
         handles: list of handles without '@', e.g. ["CENTCOM", "UK_MTO"].
         source_meta_by_handle: {handle_lower: source dict from sources.json} so
             each post inherits its account's vetted tier/country/pillars.
-        limit: max posts returned across the batch.
-        freshness_hours: informational only; recent-search covers ~7 days.
+        limit: max posts to REQUEST across the batch (API floor 10, cap 100).
+        since_hours: if > 0, drop posts older than this many hours and report
+            `truncated` when the request cap was hit before the window ended —
+            i.e. more posts may exist inside the window than were returned. This
+            is what makes "how many X in the last 24h" answerable: raise `limit`
+            and set `since_hours` so the whole window is covered.
 
     Returns:
-        {"ok", "configured", "count", "items": [normalized item...], "error"?}
+        {"ok", "configured", "count", "items", "truncated"?, "window_hours"?}
     """
     handles = [h.lstrip("@").strip() for h in (handles or []) if h and h.strip()]
     if not handles:
@@ -126,11 +130,31 @@ def fetch_x(handles, source_meta_by_handle=None, limit=10, freshness_hours=24):
             extra={"x_handle": handle},
         ))
 
+    # Time-window filter (for counting/enumeration over a fixed window). If the
+    # API returned a full page (hit max_results) and we're still inside the
+    # window, older in-window posts were cut off — flag truncated so the model
+    # never reports a count from a partial window.
+    truncated = False
+    requested = max(10, min(int(limit), 100))
+    if since_hours and since_hours > 0:
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
+        raw_n = len(items)
+        kept = [it for it in items
+                if it.get("timestamp_utc") and
+                datetime.fromisoformat(it["timestamp_utc"]) >= cutoff]
+        # If nothing was dropped by the window AND we filled the page, the oldest
+        # returned post is still inside the window -> there may be more beyond it.
+        truncated = (len(kept) == raw_n) and (raw_n >= requested)
+        items = kept
+
     return {
         "ok": True,
         "configured": True,
         "handles": batch,
         "query": query,
+        "window_hours": since_hours or None,
+        "truncated": truncated,
         "count": len(items),
         "retrieved_utc": now_utc_iso(),
         "items": items,

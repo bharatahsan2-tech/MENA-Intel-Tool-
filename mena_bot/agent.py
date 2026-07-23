@@ -228,21 +228,26 @@ def search_telegram(query_en: str, query_fa: str = "", query_ar: str = "",
     return search_channels(sources, terms, hours=hours)
 
 
-def get_x_account(handle: str) -> dict:
-    """Read recent posts from ONE X (Twitter) account by handle — the vetted
-    official/media accounts: "CENTCOM" (strike confirmations, posted well before
-    the press-release page), "UK_MTO" (vessel-incident advisories with position
-    and time — the primary maritime line), "NCEMAUAE" (the UAE alert authority,
-    which is X-first), "IDF", "PressTV"/"IrnaEnglish"/"IRIMFA_EN" (Iran
-    official), "Reuters"/"AJEnglish"/"TimesofIsrael" (media).
+def get_x_account(handle: str, hours: int = 0) -> dict:
+    """Read posts from ONE X (Twitter) account by handle — the vetted official/
+    media accounts: "CENTCOM", "UK_MTO" (maritime incidents), "NCEMAUAE" and
+    "moi_bahrain" (X-first Gulf alert authorities), "IDF", "IrnaEnglish"/
+    "IRIMFA_EN" (Iran), "BarakRavid" (Axios diplomacy).
 
-    X REQUIRES A TOKEN. If it is not configured this returns ok=false with
-    configured=false — say plainly that X was not read and cover the same body
-    via get_official_reporting (Bing relay) or Telegram. Never present X content
-    you did not fetch.
+    COUNTING / ENUMERATION: to answer "how many times did X happen in the last N
+    hours" (e.g. Bahrain siren activations, which live on moi_bahrain), set
+    hours=N. That pulls the FULL window (up to 100 posts) instead of just the
+    latest few, so you can enumerate and count every event. If the result has
+    truncated=true, the window had MORE posts than were returned — say the count
+    is a lower bound, do not present it as exact.
+
+    X REQUIRES A TOKEN. If configured=false, X was NOT read — say so and use
+    get_official_reporting / Telegram instead. Never present X you did not fetch.
 
     Args:
-        handle: the handle without @, e.g. "CENTCOM", "UK_MTO".
+        handle: the handle without @, e.g. "moi_bahrain", "UK_MTO".
+        hours: 0 for the latest posts (default); N to cover the last N hours for
+            counting/enumeration.
     """
     meta = None
     for s in select_sources():
@@ -251,7 +256,10 @@ def get_x_account(handle: str) -> dict:
             break
     key = handle.lstrip("@")
     meta_map = {key: meta} if meta else {}
-    return fetch_x([key], meta_map, limit=10)
+    # For a windowed count, request the full page (100) so the whole window is
+    # covered; otherwise keep it cheap at 10.
+    limit = 100 if hours and hours > 0 else 10
+    return fetch_x([key], meta_map, limit=limit, since_hours=hours or 0)
 
 
 # Israel alerts, media, geocode, find_sources imported directly as tools.

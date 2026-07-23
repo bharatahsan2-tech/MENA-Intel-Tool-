@@ -255,10 +255,18 @@ def make_item(source, tier, text, timestamp_utc=None, timestamp_raw=None,
 
 
 def dedupe_items(items):
-    """Drop near-duplicate items (same source + same first 90 chars of text)."""
+    """Drop TRUE duplicates only — same source, same text, AND same timestamp.
+
+    The timestamp is part of the key on purpose: repeated official alerts reuse
+    identical boilerplate ("The siren has been sounded...") for EACH activation,
+    so keying on text alone collapsed 4 distinct Bahrain siren events into 1 and
+    the count came back 2 instead of 4 (verified 2026-07-21). Distinct times =
+    distinct events; only an exact source+text+time triple is a real duplicate
+    (e.g. the same post fetched twice)."""
     seen, out = set(), []
     for it in items:
-        key = (it.get("source"), (it.get("text") or "")[:90].lower())
+        key = (it.get("source"), it.get("timestamp_utc"),
+               (it.get("text") or "")[:90].lower())
         if key in seen:
             continue
         seen.add(key)

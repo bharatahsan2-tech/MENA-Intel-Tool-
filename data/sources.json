@@ -41,7 +41,7 @@
       "Telegram/X handles get renamed/banned — re-probe regularly; verified=false means unreachable/unprobed at last check, not necessarily dead.",
       "RELAY RELEVANCE GATE: a bing-routed article must mention one of that body's relevance_terms in its title or it is discarded. Bing returns articles MATCHING a query, not the agency's statements — without this gate, unrelated coverage gets attributed to a government body.",
       "RELAY FRESHNESS: bing sources default to a 24h window; low-volume advisory bodies (UKMTO, MARAD, NetBlocks, INCD, aeCERT, Nour, Saba, Al Masirah) use relay_freshness='week' — verified 2026-07-16 that 'UKMTO' returns 0 at day and 4 real advisories at week. Their advisories stay operative until withdrawn, so the wider window is correct, not stale. Timestamps are always shown so age is never hidden.",
-      "TRANSPORT LADDER (enforced): X is the last-resort transport. Sources flagged on_demand_only=true are SKIPPED by auto-batch collection and reached ONLY via get_x_account. Iran X accounts are on_demand_only — Iran is already saturated by 9 Telegram channels + RSS, so Iran queries must not spend X credits; the Iran MFA is fetched on-demand only when the question is about diplomacy."
+      "TRANSPORT LADDER (enforced): X is EXPLICIT-REQUEST-ONLY. ALL X sources are on_demand_only=true, so auto-batch collection NEVER fetches X — default answers use Telegram + Bing relay + RSS only. get_x_account is called ONLY when the user explicitly asks for X/Twitter or for 'the official source'. This caps X credit spend to deliberate asks."
     ],
     "probe": {
       "last_run": "2026-07-20",
@@ -551,7 +551,8 @@
         "notes": "IDF official — interception/strike statements.",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "Magen David Adom — Telegram (Hebrew)",
@@ -693,7 +694,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "Israel Foreign Ministry — X",
@@ -713,7 +715,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "BAHRAIN": [
@@ -788,7 +791,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "UAE": [
@@ -867,7 +871,8 @@
         "notes": "NCEMA posts to X first — this is the primary NCEMA line once X is live.",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "WAM (Emirates News Agency) English — X",
@@ -888,7 +893,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "UAE Foreign Ministry — X",
@@ -908,7 +914,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "SAUDI_ARABIA": [
@@ -960,7 +967,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "Saudi Foreign Ministry — X",
@@ -980,7 +988,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "QATAR": [
@@ -1033,7 +1042,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "KUWAIT": [
@@ -1084,7 +1094,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "OMAN": [
@@ -1135,7 +1146,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "JORDAN": [
@@ -1187,7 +1199,8 @@
         "notes": "",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       }
     ],
     "LEBANON": [
@@ -1469,7 +1482,8 @@
         "notes": "CENTCOM posts confirmations to X well before the press-release page updates — the highest-value X account for corroborating Iranian claims.",
         "verified": true,
         "verify_note": "handle validated via X users/by lookup 2026-07-20",
-        "checked_at": "2026-07-20"
+        "checked_at": "2026-07-20",
+        "on_demand_only": true
       },
       {
         "name": "US DoD",
@@ -1575,7 +1589,8 @@
       "notes": "UKMTO publishes incident advisories (vessel attacked, position, time) to X first — the single highest-value maritime X account.",
       "verified": true,
       "verify_note": "handle validated via X users/by lookup 2026-07-20",
-      "checked_at": "2026-07-20"
+      "checked_at": "2026-07-20",
+      "on_demand_only": true
     },
     {
       "name": "US MARAD — MSCI advisories",
@@ -1752,7 +1767,8 @@
       "notes": "",
       "verified": true,
       "verify_note": "handle validated via X users/by lookup 2026-07-20",
-      "checked_at": "2026-07-20"
+      "checked_at": "2026-07-20",
+      "on_demand_only": true
     }
   ]
 }
