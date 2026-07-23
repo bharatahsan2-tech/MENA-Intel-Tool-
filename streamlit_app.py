@@ -157,16 +157,46 @@ def _run_chat():
         with st.chat_message(role, avatar="🛰️" if role == "assistant" else "🧭"):
             st.markdown(msg)
 
-    typed = st.chat_input("Ask about strikes, Hormuz, ceasefire, cyber…")
-    prompt = typed or st.session_state.pop("pending", None)
-    if prompt:
-        history.append(("user", prompt))
+    typed = st.chat_input("Ask, or attach a screenshot / PDF to source…",
+                          accept_file=True,
+                          file_type=["png", "jpg", "jpeg", "webp", "pdf"])
+    pending = st.session_state.pop("pending", None)
+
+    user_text, files = None, []
+    if typed is not None:
+        user_text = (typed.text or "").strip()
+        files = list(typed.files or [])
+    elif pending:
+        user_text = pending
+
+    attachments = []
+    for f in files:
+        data = f.getvalue()
+        if len(data) > 15 * 1024 * 1024:
+            st.warning(f"{f.name} is larger than 15MB — skipped.")
+            continue
+        attachments.append({"data": data,
+                            "mime": f.type or "application/octet-stream",
+                            "name": f.name})
+
+    if user_text or attachments:
+        shown = user_text or ""
+        if attachments:
+            shown = (shown + "\n\n" if shown else "") + \
+                "📎 " + ", ".join(a["name"] for a in attachments)
+        history.append(("user", shown))
         with st.chat_message("user", avatar="🧭"):
-            st.markdown(prompt)
+            st.markdown(shown)
+            for f in files:
+                if (f.type or "").startswith("image/"):
+                    st.image(f.getvalue(), width=260)
         with st.chat_message("assistant", avatar="🛰️"):
-            with st.spinner("Gathering live intel across sources…"):
+            msg = "Reading the file & sourcing it…" if attachments \
+                else "Gathering live intel across sources…"
+            with st.spinner(msg):
                 try:
-                    answer = ask(st.session_state.chat, prompt)
+                    answer = ask(st.session_state.chat, user_text or "",
+                                 attachments=attachments or None)
                 except Exception as e:
                     answer = f"⚠️ Error: {e}"
             st.markdown(answer)

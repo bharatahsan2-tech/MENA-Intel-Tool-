@@ -354,8 +354,32 @@ class MenaChat:
         )
         self._chat = self._client.chats.create(model=GEMINI_MODEL, config=config)
 
-    def send(self, user_message: str) -> str:
-        resp = self._chat.send_message(user_message)
+    def send(self, user_message: str, attachments=None) -> str:
+        """Send a turn, optionally with uploaded files.
+
+        attachments: list of {"data": bytes, "mime": str, "name": str}. Images
+        and PDFs are passed to Gemini as inline parts alongside the text, so the
+        model can OCR/read them and then call the tools to corroborate — see the
+        UPLOADED FILE rules in the system prompt.
+        """
+        if attachments:
+            parts = []
+            for a in attachments:
+                try:
+                    parts.append(types.Part.from_bytes(
+                        data=a["data"], mime_type=a.get("mime") or "application/octet-stream"))
+                except Exception:
+                    continue
+            names = ", ".join(a.get("name", "file") for a in attachments)
+            parts.append(types.Part.from_text(text=(
+                (user_message or "").strip()
+                + f"\n\n[User attached: {names}. Follow the UPLOADED FILE rules: "
+                  "extract/translate the content, then use the tools to find it "
+                  "in the real sources and report corroboration status.]")))
+            message = parts
+        else:
+            message = user_message
+        resp = self._chat.send_message(message)
         return _linkify_sources(resp.text or "(no text returned)")
 
 
@@ -363,5 +387,5 @@ def build_chat() -> MenaChat:
     return MenaChat()
 
 
-def ask(chat: MenaChat, user_message: str) -> str:
-    return chat.send(user_message)
+def ask(chat: MenaChat, user_message: str, attachments=None) -> str:
+    return chat.send(user_message, attachments=attachments)
