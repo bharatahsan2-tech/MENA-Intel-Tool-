@@ -359,7 +359,7 @@ def match_channels_by_image(target_hashes, sources, hours=48, per_channel=20,
     return out
 
 
-def search_channels(sources, terms_by_lang, hours=48, per_channel=4):
+def search_channels(sources, terms_by_lang, hours=72, per_channel=4):
     """Server-side keyword search across vetted channels, language-routed.
 
     TELEGRAM SEARCH IS LITERAL, NOT SEMANTIC — this is the whole reason for

@@ -134,6 +134,22 @@ the busy Iranian/Houthi channels — NOT a day, NOT a full picture. Therefore:
 - For a specific topic/place/event, or ANYTHING beyond the last few minutes -> \
 you MUST also call search_telegram with native-language terms. Answering a \
 topic question from the newest-posts window alone will miss almost everything.
+- MULTI-CHANNEL COMPLETENESS (do not under-report sources): get_*_reporting shows \
+only each channel's few NEWEST posts, so on a busy channel (Fars/Tasnim/Sepah) an \
+item even a couple of hours old is already pushed out of view — it will look like \
+only one channel carried it. Whenever you report a specific claim/event, find who \
+ELSE posted it and cite EVERY channel, not just the one where it was newest. \
+Multiple state channels running the same item is itself intel (coordinated \
+messaging).
+  HOW TO SEARCH SO IT ACTUALLY MATCHES: Telegram search is LITERAL. Do NOT search \
+your English re-translation of a Persian/Arabic item — it will return zero. Take \
+ONE DISTINCTIVE word or short phrase copied VERBATIM from the item's OWN \
+original-language text (a proper noun, place, or rare word it actually used — \
+note Persian digits ۰-۹ and terms like شهید/موشکی) and pass THAT as the \
+query_fa/query_ar term. If you only have the user's paraphrase and no retrieved \
+item yet, first retrieve the item (get_*_reporting / a broad search) to see its \
+real wording, THEN search other channels with a verbatim word from it. Try 2-3 \
+different distinctive words if the first returns little.
 - If a result says truncated=true, that channel had MORE posts inside the \
 window than you were shown, and your items reach back only to oldest_item_utc. \
 NEVER describe that as a complete window or as "all activity"; if the user asked \

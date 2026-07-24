@@ -195,7 +195,7 @@ def get_telegram_channel(channel: str) -> dict:
 
 
 def search_telegram(query_en: str, query_fa: str = "", query_ar: str = "",
-                    query_he: str = "", country: str = "", hours: int = 48) -> dict:
+                    query_he: str = "", country: str = "", hours: int = 72) -> dict:
     """SEARCH the vetted Telegram channels by keyword — use this for ANY question
     about a specific topic, place, weapon, vessel or event, and for ANYTHING
     older than the last few minutes.
