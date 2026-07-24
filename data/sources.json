@@ -111,6 +111,10 @@
       {
         "date": "2026-07-20",
         "change": "X roster pruned to purpose (user): X = ONLY sources not already on Telegram/web. Dropped media X (Reuters, AJEnglish, TimesofIsrael, AlArabiya_Eng — all Bing-covered), kept BarakRavid/Axios. Iran X cut to IrnaEnglish+IRIMFA_EN (MFA is X-only, low-vol); dropped PressTV (on RSS+TG) and Tasnimnews_EN (on TG) as X — their RSS/Telegram entries remain."
+      },
+      {
+        "date": "2026-07-24",
+        "change": "Added Telegram @sepahcybery (IRGC-aligned Farsi semi-official claim channel) to IRAN per user."
       }
     ]
   },
@@ -488,6 +492,28 @@
         "http_status": 200,
         "verify_note": "API-verified returning items 2026-07-16",
         "checked_at": "2026-07-16"
+      },
+      {
+        "name": "IRGC Cyber (Sepah Sayberi Pasdaran) — Telegram (Farsi)",
+        "tier": "semi_official",
+        "access": "telegram",
+        "url": "https://t.me/s/sepahcybery",
+        "telegram": "sepahcybery",
+        "pillars": [
+          "tactical",
+          "strategic",
+          "cyber"
+        ],
+        "language": "fa",
+        "connector": {
+          "format": "telegram_public_preview"
+        },
+        "source_url": "https://t.me/s/sepahcybery",
+        "notes": "IRGC-aligned (title: سپاه سایبری پاسداران IRGC) pro-Sepah Farsi channel; aggregates/repost war+political news and strike claims (e.g. Operation Saeghe). SEMI-OFFICIAL claim channel, NOT an official govt mouthpiece — treat posts as CLAIMS. Added per user 2026-07-24.",
+        "verified": true,
+        "http_status": 200,
+        "verify_note": "API-verified 2026-07-24: exists (title 'سپاه سایبری پاسداران IRGC'), active same-day, Farsi",
+        "checked_at": "2026-07-24"
       }
     ],
     "ISRAEL": [
