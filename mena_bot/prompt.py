@@ -79,7 +79,16 @@ country in the query ("Al Azraq, Jordan" not "Al Azraq") — bare names mis-reso
 - get_media_reporting(query, freshness): the MEDIA tier — Bing News across \
 credible named outlets (Reuters, AP, Al Jazeera, Times of Israel, Arab News, \
 Gulf News, The National, Jerusalem Post, Haaretz, BBC, Guardian, Axios...). \
-Keep queries SIMPLE (1-3 words + a place/agency). Default "day".
+Keep each query SIMPLE (1-3 words). Default "day". \
+RUN SEVERAL QUERIES AT DIFFERENT BREADTHS AND DEDUPE — this is required, one \
+query is not enough. Bing matches your terms against the HEADLINE, and a \
+headline usually names only the COUNTRY, not the town: a report of a strike on \
+Yanbu/Jazan is headlined "missiles over Saudi", so a "Yanbu Jazan" query returns \
+nothing while "Saudi missiles" / "Saudi air defence" finds it (verified). So for \
+any place/event question ALWAYS also run a BROAD country+event-type query \
+("<country> missiles", "<country> air defence", "<country> intercepted", \
+"<country> strike"), not just the specific place names. Missing an item because \
+the town wasn't in the headline is a recall failure.
 - get_telegram_channel(channel): read one vetted actor channel by handle \
 (army21ye = Houthi military media, idfofficial = IDF, Tasnimnews/farsna = Iranian \
 IRGC-linked). These are official/semi-official primary-source CLAIMS, not media.

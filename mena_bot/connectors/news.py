@@ -117,8 +117,41 @@ def _credible(url):
     return any(host == d or host.endswith("." + d) for d in _CREDIBLE_OUTLETS)
 
 
+# Auto-broadening: Bing matches the query against the HEADLINE, which usually
+# names only the country, not the town — so "Yanbu Jazan" misses a Reuters piece
+# headlined "missiles over Saudi" that "Saudi missiles" finds (verified
+# 2026-07-25). When a query names a place/country, we ALSO run broad
+# country+event companion queries so headline-only-country coverage is caught.
+# This is code-enforced because prompt guidance to "broaden" was not reliably
+# followed by the model.
+_PLACE_TO_COUNTRY = {
+    "saudi": "Saudi", "jazan": "Saudi", "yanbu": "Saudi", "riyadh": "Saudi",
+    "jeddah": "Saudi", "dammam": "Saudi", "abha": "Saudi", "najran": "Saudi",
+    "bahrain": "Bahrain", "manama": "Bahrain",
+    "uae": "UAE", "emirates": "UAE", "dubai": "UAE", "abu dhabi": "UAE",
+    "qatar": "Qatar", "doha": "Qatar", "udeid": "Qatar",
+    "kuwait": "Kuwait", "oman": "Oman", "muscat": "Oman",
+    "jordan": "Jordan", "amman": "Jordan",
+    "israel": "Israel", "tel aviv": "Israel", "haifa": "Israel",
+    "iran": "Iran", "tehran": "Iran", "bandar abbas": "Iran",
+    "iraq": "Iraq", "baghdad": "Iraq", "erbil": "Iraq", "ain al-asad": "Iraq",
+    "lebanon": "Lebanon", "beirut": "Lebanon",
+    "yemen": "Yemen", "houthi": "Yemen", "sanaa": "Yemen", "hodeidah": "Yemen",
+    "hormuz": "Strait of Hormuz", "red sea": "Red Sea",
+}
+
+
+def _detect_country(query):
+    """Return the broad country/region term for a query, or None."""
+    low = f" {query.lower()} "
+    for place, country in _PLACE_TO_COUNTRY.items():
+        if place in low:
+            return country
+    return None
+
+
 def get_media_reporting(query: str, freshness: str = "day",
-                        max_items: int = 6) -> dict:
+                        max_items: int = 6, broaden: bool = True) -> dict:
     """Search recent NEWS ARTICLES about the conflict (media layer, UNOFFICIAL).
 
     Also the fallback for official bodies that block direct access (CENTCOM, US
@@ -143,67 +176,86 @@ def get_media_reporting(query: str, freshness: str = "day",
     fresh_key = freshness.strip().lower()
     interval = _FRESHNESS.get(fresh_key, "7")
     max_age = _MAX_AGE.get(fresh_key, _MAX_AGE["day"])
-    params = {"q": query, "format": "rss", "qft": f'interval="{interval}"'}
-    try:
-        resp = requests.get(_SEARCH_URL, params=params, headers=BROWSER_HEADERS,
-                            timeout=HTTP_TIMEOUT)
-        resp.raise_for_status()
-        root = ET.fromstring(resp.content)
-    except requests.RequestException as e:
-        return {"ok": False, "query": query, "error": f"news search failed: {e}"}
-    except ET.ParseError as e:
-        return {"ok": False, "query": query, "error": f"news parse error: {e}"}
-
     now = datetime.now(timezone.utc)
-    items = []
     excluded = {"aggregator": 0, "stale_or_undated": 0, "not_credible": 0}
-    for it in root.findall(".//item"):
-        url = _direct_url(it.findtext("link") or "")
-        if not url or _blocked(url):
-            excluded["aggregator"] += 1
-            continue
-        # CREDIBLE-MEDIA MANDATE: drop non-West/MENA and non-specialist outlets
-        # outright — the model never even sees them, so it cannot cite them.
-        if not _credible(url):
-            excluded["not_credible"] += 1
-            continue
-        pub_raw = it.findtext("pubDate")
-        try:
-            pub = parsedate_to_datetime(pub_raw)
-            if pub.tzinfo is None:
-                pub = pub.replace(tzinfo=timezone.utc)
-        except (TypeError, ValueError):
-            pub = None
-        if pub is None or now - pub > max_age:
-            excluded["stale_or_undated"] += 1
-            continue
-        items.append(make_item(
-            source=_outlet(url) or "unknown", tier="media",
-            text=(it.findtext("title") or "").strip(),
-            timestamp_utc=pub.astimezone(timezone.utc).isoformat(),
-            timestamp_raw=pub_raw, link=url, source_url=url,
-            extra={"outlet_vetted": True},  # all survivors are credible
-        ))
-        if len(items) >= max_items:
-            break
 
-    items.sort(key=lambda i: i.get("timestamp_utc") or "", reverse=True)
+    def _run(q, cap):
+        """Fetch + filter one Bing query. Mutates `excluded`; returns items."""
+        params = {"q": q, "format": "rss", "qft": f'interval="{interval}"'}
+        try:
+            resp = requests.get(_SEARCH_URL, params=params,
+                                headers=BROWSER_HEADERS, timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            root = ET.fromstring(resp.content)
+        except (requests.RequestException, ET.ParseError):
+            return []
+        got = []
+        for it in root.findall(".//item"):
+            url = _direct_url(it.findtext("link") or "")
+            if not url or _blocked(url):
+                excluded["aggregator"] += 1
+                continue
+            if not _credible(url):  # CREDIBLE-MEDIA MANDATE (West/MENA only)
+                excluded["not_credible"] += 1
+                continue
+            pub_raw = it.findtext("pubDate")
+            try:
+                pub = parsedate_to_datetime(pub_raw)
+                if pub.tzinfo is None:
+                    pub = pub.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                pub = None
+            if pub is None or now - pub > max_age:
+                excluded["stale_or_undated"] += 1
+                continue
+            got.append(make_item(
+                source=_outlet(url) or "unknown", tier="media",
+                text=(it.findtext("title") or "").strip(),
+                timestamp_utc=pub.astimezone(timezone.utc).isoformat(),
+                timestamp_raw=pub_raw, link=url, source_url=url,
+                extra={"outlet_vetted": True}))
+            if len(got) >= cap:
+                break
+        return got
+
+    # Primary query, then broad country+event companions so headline-only-country
+    # coverage isn't missed (see _detect_country note). Companions are cheap (Bing
+    # RSS is free); broaden=False on the official-relay path keeps it targeted.
+    queries = [query]
+    items = _run(query, max_items * 2)
+    if broaden:
+        country = _detect_country(query)
+        if country:
+            for comp in (f"{country} missiles", f"{country} air defense",
+                         f"{country} strike"):
+                if comp.lower() != query.strip().lower():
+                    items += _run(comp, max_items)
+                    queries.append(comp)
+
+    # Merge + dedupe by URL, newest first, then cap.
+    seen, uniq = set(), []
+    for it in sorted(items, key=lambda i: i.get("timestamp_utc") or "", reverse=True):
+        u = it.get("link")
+        if u and u not in seen:
+            seen.add(u)
+            uniq.append(it)
+    uniq = uniq[:max_items + (4 if broaden else 0)]
     return {
         "ok": True,
         "source": "Bing News (credible West/MENA media — UNOFFICIAL)",
         "query": query,
-        "count": len(items),
-        "vetted_count": len(items),
+        "queries_run": queries,
+        "count": len(uniq),
+        "vetted_count": len(uniq),
         "excluded": excluded,
         "retrieved_utc": now.isoformat(),
-        "items": items,
+        "items": uniq,
         "note": ("MEDIA CLAIMS or wire relay of official statements. Cite the "
-                 "outlet; corroboration, not confirmation. Every item here is "
-                 "already a CREDIBLE West/MENA newsroom or specialist desk — "
-                 "non-credible and non-West/MENA outlets, aggregators, and "
-                 "stale/undated items were dropped (see `excluded`). count=0 -> "
-                 "say 'No credible West/MENA media coverage retrieved' — do NOT "
-                 "fall back to weaker sources."),
+                 "outlet; corroboration, not confirmation. Broad country+event "
+                 "companion queries were auto-run so a report headlined by "
+                 "country (not town) is not missed. Every item is a CREDIBLE "
+                 "West/MENA newsroom (see `excluded`). count=0 -> say 'No "
+                 "credible West/MENA media coverage retrieved'."),
     }
 
 

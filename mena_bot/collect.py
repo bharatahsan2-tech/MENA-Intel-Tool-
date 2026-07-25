@@ -101,7 +101,10 @@ def _fetch_bing_source(source: dict, per_source: int) -> list:
     freshness = source.get("relay_freshness", "day")
     out: list = []
     for q in queries[:_MAX_BING_QUERIES]:
-        res = get_media_reporting(q, freshness=freshness, max_items=per_source)
+        # broaden=False: the relay path uses its own vetted per-body queries +
+        # relevance gate; auto-broadening would pull off-body country noise.
+        res = get_media_reporting(q, freshness=freshness, max_items=per_source,
+                                  broaden=False)
         if not res.get("ok"):
             continue
         for it in res.get("items", []):
