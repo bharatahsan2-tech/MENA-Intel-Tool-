@@ -11,6 +11,7 @@ is held on an object so its HTTP transport isn't garbage-collected; source-line
 links are guaranteed in code, not left to the model.
 """
 import threading
+from datetime import datetime, timezone
 
 from google import genai
 from google.genai import types
@@ -432,8 +433,20 @@ class MenaChat:
 
     def __init__(self):
         self._client = genai.Client(api_key=require_gemini_key())
+        # Inject the CURRENT date fresh each conversation. The model's knowledge
+        # ends Jan 2026 and the prompt is full of dated build notes, so without
+        # this anchor it can mis-judge what "today"/"latest" means. Tool results
+        # carry retrieved_utc, but an explicit today prevents anchoring to stale
+        # dates in context.
+        today = datetime.now(timezone.utc)
+        dated_prompt = (
+            f"CURRENT DATE/TIME: {today.strftime('%A, %d %B %Y')} "
+            f"({today.isoformat(timespec='minutes')} UTC). This is TODAY. Any "
+            "date in your training or in these instructions' build-notes is NOT "
+            "today. 'Latest'/'today' means relative to the date above; judge "
+            "freshness against it.\n\n" + SYSTEM_PROMPT)
         config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+            system_instruction=dated_prompt,
             tools=TOOLS,
             temperature=0.2,  # intel work: precision over creativity
         )

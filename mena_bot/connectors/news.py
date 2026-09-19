@@ -36,9 +36,14 @@ _MAX_AGE = {"day": timedelta(hours=27), "week": timedelta(days=8),
 # The media tier is credible NAMED outlets with editorial standards; a reader
 # seeing "timesofisrael.com" would wrongly assume editorial review.
 _BLOCKED_DOMAINS = (
+    # aggregators / syndication mirrors
     "msn.com", "aol.com", "yahoo.com", "bing.com", "news.google.com",
     "flipboard.com", "newsbreak.com", "smartnews.com", "ground.news",
+    # user-generated blog platforms riding a real outlet's domain
     "blogs.timesofisrael.com", "medium.com", "substack.com",
+    # state propaganda — not credible newsrooms, dropped even in annotate mode
+    "rt.com", "tass.com", "sputnikglobe.com", "sputniknews.com",
+    "globaltimes.cn", "presstv.co.uk",
 )
 
 
@@ -61,16 +66,15 @@ def _outlet(url):
     return host[4:] if host.startswith("www.") else host
 
 
-# CREDIBLE-MEDIA MANDATE (user directive 2026-07-21): the media tier is
-# ENFORCED to established newsrooms from the WEST or the MIDDLE EAST only, plus
-# recognized global maritime/cyber/energy specialist desks (topical authorities
-# on this beat). Anything else — Indian/Asian general dailies, Russian/Chinese
-# state media, crypto blogs, local US TV, aggregators — is DROPPED, not merely
-# flagged. This is a shift from the earlier annotate-only policy: get_media_
-# reporting now FILTERS. Tradeoff accepted by the user: some genuine
-# non-West/MENA reporting (e.g. Indian outlets on Hormuz shipping) is excluded;
-# if it matters, a West/MENA wire (Reuters/AP/Al Arabiya) almost always carries
-# it too. To broaden, add a domain here.
+# CREDIBLE outlets = the "vetted" FLAG, not a hard filter (revised 2026-09-19).
+# History: 2026-07-21 this hard-DROPPED anything non-West/MENA — but on
+# 2026-09-19 that silently hid a major Riyadh missile strike, because the
+# breaking Gulf coverage was ALL Indian live-blogs (News18, Livemint, The Week)
+# while the Western wires lagged. So get_media_reporting no longer drops on
+# credibility; it KEEPS credible newsrooms globally and marks each outlet_vetted
+# true/false. Only genuine JUNK is still dropped (see _BLOCKED_DOMAINS:
+# aggregators, blog platforms, state propaganda). The list below is broad on
+# purpose — India covers this war heavily and credibly; add any real newsroom.
 _CREDIBLE_OUTLETS = (
     # --- WEST: wires + US/UK/EU/AU majors ---
     "reuters.com", "apnews.com", "afp.com", "upi.com", "bbc.com", "bbc.co.uk",
@@ -95,6 +99,12 @@ _CREDIBLE_OUTLETS = (
     "bna.bh", "spa.gov.sa", "qna.org.qa", "zawya.com", "newsofbahrain.com",
     "timesofisrael.com", "jpost.com", "haaretz.com", "ynetnews.com",
     "israelnationalnews.com", "i24news.tv",
+    # --- INDIA + other major international newsrooms (heavy MENA-war coverage) ---
+    "timesofindia.indiatimes.com", "hindustantimes.com", "indianexpress.com",
+    "ndtv.com", "livemint.com", "thehindu.com", "news18.com",
+    "business-standard.com", "firstpost.com", "cnbctv18.com", "theprint.in",
+    "wionews.com", "deccanherald.com", "theweek.in", "moneycontrol.com",
+    "scmp.com", "straitstimes.com", "japantimes.co.jp", "aljazeera.net",
     # --- GLOBAL SPECIALIST AUTHORITIES on this beat (topic, not geography) ---
     # maritime
     "lloydslist.com", "tradewindsnews.com", "maritime-executive.com",
@@ -177,7 +187,7 @@ def get_media_reporting(query: str, freshness: str = "day",
     interval = _FRESHNESS.get(fresh_key, "7")
     max_age = _MAX_AGE.get(fresh_key, _MAX_AGE["day"])
     now = datetime.now(timezone.utc)
-    excluded = {"aggregator": 0, "stale_or_undated": 0, "not_credible": 0}
+    excluded = {"aggregator": 0, "stale_or_undated": 0, "non_vetted_kept": 0}
 
     def _run(q, cap):
         """Fetch + filter one Bing query. Mutates `excluded`; returns items."""
@@ -192,11 +202,8 @@ def get_media_reporting(query: str, freshness: str = "day",
         got = []
         for it in root.findall(".//item"):
             url = _direct_url(it.findtext("link") or "")
-            if not url or _blocked(url):
+            if not url or _blocked(url):  # junk only: aggregators/blogs/propaganda
                 excluded["aggregator"] += 1
-                continue
-            if not _credible(url):  # CREDIBLE-MEDIA MANDATE (West/MENA only)
-                excluded["not_credible"] += 1
                 continue
             pub_raw = it.findtext("pubDate")
             try:
@@ -208,12 +215,18 @@ def get_media_reporting(query: str, freshness: str = "day",
             if pub is None or now - pub > max_age:
                 excluded["stale_or_undated"] += 1
                 continue
+            # ANNOTATE, don't drop: credible non-West/MENA newsrooms (e.g. Indian
+            # live-blogs first on a Gulf strike) are KEPT and flagged, so a major
+            # event is never hidden for lack of a Western wire.
+            vetted = _credible(url)
+            if not vetted:
+                excluded["non_vetted_kept"] += 1
             got.append(make_item(
                 source=_outlet(url) or "unknown", tier="media",
                 text=(it.findtext("title") or "").strip(),
                 timestamp_utc=pub.astimezone(timezone.utc).isoformat(),
                 timestamp_raw=pub_raw, link=url, source_url=url,
-                extra={"outlet_vetted": True}))
+                extra={"outlet_vetted": vetted}))
             if len(got) >= cap:
                 break
         return got
@@ -242,20 +255,23 @@ def get_media_reporting(query: str, freshness: str = "day",
     uniq = uniq[:max_items + (4 if broaden else 0)]
     return {
         "ok": True,
-        "source": "Bing News (credible West/MENA media — UNOFFICIAL)",
+        "source": "Bing News (media — UNOFFICIAL)",
         "query": query,
         "queries_run": queries,
         "count": len(uniq),
-        "vetted_count": len(uniq),
+        "vetted_count": sum(1 for i in uniq if i.get("outlet_vetted")),
         "excluded": excluded,
         "retrieved_utc": now.isoformat(),
         "items": uniq,
-        "note": ("MEDIA CLAIMS or wire relay of official statements. Cite the "
-                 "outlet; corroboration, not confirmation. Broad country+event "
-                 "companion queries were auto-run so a report headlined by "
-                 "country (not town) is not missed. Every item is a CREDIBLE "
-                 "West/MENA newsroom (see `excluded`). count=0 -> say 'No "
-                 "credible West/MENA media coverage retrieved'."),
+        "note": ("MEDIA reports/claims — corroboration, not confirmation. Broad "
+                 "country+event companion queries were auto-run so a report "
+                 "headlined by country (not town) isn't missed. Junk "
+                 "(aggregators, blogs, state propaganda) is dropped; everything "
+                 "else is KEPT with outlet_vetted true/false. Lead with "
+                 "outlet_vetted=true, but for a BREAKING event STILL report what "
+                 "outlet_vetted=false credible outlets (e.g. Indian live-blogs) "
+                 "carry — flag them as not-yet-in-a-Western-wire, never withhold "
+                 "a major strike for lack of one. count=0 -> 'no media retrieved'."),
     }
 
 

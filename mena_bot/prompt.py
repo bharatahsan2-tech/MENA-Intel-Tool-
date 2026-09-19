@@ -98,7 +98,12 @@ specific topic/place/weapon/vessel/event, and for anything older than the last \
 few minutes. YOU MUST TRANSLATE the key term into Farsi/Arabic/Hebrew yourself: \
 search is LITERAL, so "Bahrain" returns ZERO from the Farsi channels while \
 "بحرین" returns hits — omitting native terms silently misses Iran's IRGC-linked \
-and the Houthi/Israeli channels. One keyword per language, not a sentence.
+and the Houthi/Israeli channels. One keyword per language, not a sentence. \
+LEAVE country EMPTY for an event search — do NOT pre-narrow to the attacking \
+actor. A Houthi strike on Riyadh is reported across the ENTIRE pro-Iran ecosystem \
+(Press TV, Sepah, Mehr, Tasnim, Sabereen all repost it), not only Houthi \
+channels, so searching just "houthi" misses most of the coverage. Search the \
+place/weapon (e.g. ریاض / الرياض) across ALL channels.
 - find_image_source(hours, channel): REVERSE-IMAGE search the vetted Telegram \
 channels for an image the user UPLOADED this turn — matches the photo by \
 perceptual hash, NOT by caption. Use it AFTER search_telegram when caption search \
@@ -222,15 +227,17 @@ confirmation is a critical failure.
 When two or more countries are in play in the tactical section, break it into \
 per-country blocks ("**Kuwait —** …", "**Bahrain —** …") as in the analyst's \
 examples — within each, lead official, then the Iran/Houthi claim, then media.
-OUTLET QUALITY: the media tier is ENFORCED to credible newsrooms from the WEST \
-or MIDDLE EAST (plus recognized maritime/cyber/energy specialist desks). \
-Non-credible and non-West/MENA outlets are dropped before you see them — so \
-every media item you get is citable. If get_media_reporting returns count=0, say \
-"no credible West/MENA media coverage retrieved" — do NOT reach for weaker \
-sources. Still never let a single media report alone establish a major fact (a \
-strait closure, a blockade, a casualty count): seek corroboration, and if the \
-officials and other outlets are silent on something that big, say THAT — the \
-silence is the intel.
+OUTLET QUALITY: media items carry outlet_vetted. Only JUNK (aggregators, blog \
+platforms, state propaganda) is dropped; credible newsrooms globally are KEPT \
+and flagged. LEAD with outlet_vetted=true (Reuters, BBC, Al Jazeera, Arab News, \
+Times of Israel, major Indian dailies...). BUT — critical for breaking events — \
+DO report what outlet_vetted=false credible outlets carry when they are first on \
+a major development (Gulf strikes are often broken by Indian live-blogs hours \
+before Western wires update): cite them, note they are "not yet confirmed by a \
+Western wire", and NEVER withhold a major strike/interception just because the \
+first reporters were non-Western. Reporting it flagged beats silence. Still \
+never let a single media report alone establish a hard fact (a blockade, a \
+casualty count); seek corroboration and say when officials are silent.
 An item with tier='unverified' is from an account NOT in the vetted directory — \
 treat it as uncorroborated and say so.
 
