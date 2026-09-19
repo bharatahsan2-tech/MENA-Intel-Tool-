@@ -195,6 +195,67 @@ def get_telegram_channel(channel: str) -> dict:
     return fetch_telegram_best(channel, meta, limit=10)
 
 
+# English -> native search terms for the conflict vocabulary. The model
+# repeatedly fails to translate (searching English "Riyadh airport" returns ZERO
+# from Arabic/Farsi channels while "الرياض" returns 19 hits), so search_telegram
+# AUTO-FILLS native terms from the English. Cities first (most distinctive), then
+# countries, then facilities/weapons — the first English match wins.
+_EN_NATIVE = {
+    # cities (most distinctive — win over country/facility)
+    "riyadh": {"fa": "ریاض", "ar": "الرياض"},
+    "jeddah": {"fa": "جده", "ar": "جدة"},
+    "dammam": {"fa": "دمام", "ar": "الدمام"},
+    "manama": {"fa": "منامه", "ar": "المنامة"},
+    "dubai": {"fa": "دبی", "ar": "دبي"},
+    "abu dhabi": {"fa": "ابوظبی", "ar": "أبوظبي"},
+    "doha": {"fa": "دوحه", "ar": "الدوحة"},
+    "amman": {"fa": "امان", "ar": "عمّان"},
+    "tel aviv": {"fa": "تل آویو", "ar": "تل أبيب", "he": "תל אביב"},
+    "haifa": {"fa": "حیفا", "ar": "حيفا", "he": "חיפה"},
+    "tehran": {"fa": "تهران", "ar": "طهران"},
+    "baghdad": {"fa": "بغداد", "ar": "بغداد"},
+    "erbil": {"fa": "اربیل", "ar": "أربيل"},
+    "beirut": {"fa": "بیروت", "ar": "بيروت"},
+    "sanaa": {"fa": "صنعا", "ar": "صنعاء"},
+    # countries
+    "saudi": {"fa": "عربستان", "ar": "السعودية"},
+    "bahrain": {"fa": "بحرین", "ar": "البحرين"},
+    "emirates": {"fa": "امارات", "ar": "الإمارات"},
+    "uae": {"fa": "امارات", "ar": "الإمارات"},
+    "qatar": {"fa": "قطر", "ar": "قطر"},
+    "kuwait": {"fa": "کویت", "ar": "الكويت"},
+    "oman": {"fa": "عمان", "ar": "عُمان"},
+    "jordan": {"fa": "اردن", "ar": "الأردن"},
+    "israel": {"fa": "اسرائیل", "ar": "إسرائيل", "he": "ישראל"},
+    "iran": {"fa": "ایران", "ar": "إيران"},
+    "iraq": {"fa": "عراق", "ar": "العراق"},
+    "lebanon": {"fa": "لبنان", "ar": "لبنان"},
+    "yemen": {"fa": "یمن", "ar": "اليمن"},
+    # facilities / infrastructure
+    "airport": {"fa": "فرودگاه", "ar": "مطار"},
+    "port": {"fa": "بندر", "ar": "ميناء"},
+    "refinery": {"fa": "پالایشگاه", "ar": "مصفاة"},
+    "aramco": {"fa": "آرامکو", "ar": "أرامكو"},
+    "hormuz": {"fa": "هرمز", "ar": "هرمز"},
+    "red sea": {"fa": "دریای سرخ", "ar": "البحر الأحمر"},
+    # weapons / events
+    "missile": {"fa": "موشک", "ar": "صاروخ"},
+    "drone": {"fa": "پهپاد", "ar": "مسيرة"},
+    "strike": {"fa": "حمله", "ar": "هجوم"},
+    "explosion": {"fa": "انفجار", "ar": "انفجار"},
+    "siren": {"fa": "آژیر", "ar": "صافرة"},
+}
+
+
+def _auto_native(query_en, lang):
+    """Best native term for an English query in `lang`, or '' if none known."""
+    low = f" {(query_en or '').lower()} "
+    for en, natives in _EN_NATIVE.items():
+        if en in low and natives.get(lang):
+            return natives[lang]
+    return ""
+
+
 def search_telegram(query_en: str, query_fa: str = "", query_ar: str = "",
                     query_he: str = "", country: str = "", hours: int = 72) -> dict:
     """SEARCH the vetted Telegram channels by keyword — use this for ANY question
@@ -206,13 +267,15 @@ def search_telegram(query_en: str, query_fa: str = "", query_ar: str = "",
     coverage on the busy Iranian/Houthi channels. This tool searches back across
     hours/days instead.
 
-    YOU MUST SUPPLY NATIVE-LANGUAGE TERMS. Telegram search is LITERAL, not
-    semantic: "Bahrain" returns ZERO from the Farsi channels while "بحرین"
-    returns hits. Each channel is searched in its OWN language, so if you omit
-    query_fa/query_ar/query_he you will silently miss Iran's IRGC-linked, the
-    Houthi, and the Israeli channels — your best primary sources. Always
-    translate the key term yourself into Farsi, Arabic and Hebrew.
-    Use ONE keyword per language (a place, weapon or actor), not a sentence.
+    NATIVE TERMS ARE AUTO-FILLED. Telegram search is LITERAL — "Riyadh" returns
+    ZERO from Farsi/Arabic channels while "الرياض" returns hits — so for common
+    places/weapons the tool auto-translates query_en into Farsi/Arabic/Hebrew for
+    you (result carries `auto_translated`). You can just pass query_en. For a
+    term NOT in the common vocabulary (a specific person, unit, or codename),
+    STILL supply query_fa/query_ar/query_he yourself, or it will be missed on the
+    non-English channels. Use ONE keyword per language (a place/weapon/actor),
+    not a sentence — prefer the CITY (الرياض) over a facility phrase; the city
+    term catches facility posts (airport, port) too.
 
     Args:
         query_en: the key term in English, e.g. "Hormuz".
@@ -228,9 +291,20 @@ def search_telegram(query_en: str, query_fa: str = "", query_ar: str = "",
         `no_term_for` is a BLIND SPOT — say so if it is non-empty.
     """
     terms = {"en": query_en, "fa": query_fa, "ar": query_ar, "he": query_he}
+    # Auto-fill any native term the model left empty, from the English query.
+    auto = {}
+    for lang in ("fa", "ar", "he"):
+        if not (terms[lang] or "").strip():
+            native = _auto_native(query_en, lang)
+            if native:
+                terms[lang] = native
+                auto[lang] = native
     sources = [s for s in select_sources(country=country or None)
                if s.get("access") == "telegram"]
-    return search_channels(sources, terms, hours=hours)
+    res = search_channels(sources, terms, hours=hours)
+    if auto:
+        res["auto_translated"] = auto
+    return res
 
 
 def get_x_account(handle: str, hours: int = 0) -> dict:
